@@ -1,8 +1,9 @@
 // Everything that moves over the painting: the motif's own cast (at Eden Dock,
-// the DLR crossing the bridge), rain, and whatever is falling through the air
-// (leaves, petals, snow). It lives on its own canvas above the painting and is
-// redrawn each frame in the same brushwork. The few painted things that stand
-// in front of the cast (the bridge railing, say) are kept here too.
+// the DLR crossing the bridge; on Parliament Hill, a kite and passing birds),
+// rain, and whatever is falling through the air (leaves, petals, snow). It
+// lives on its own canvas above the painting and is redrawn each frame in the
+// same brushwork. The few painted things that stand in front of the cast (the
+// bridge railing, say) are kept here too.
 
 import { makeRng, mix } from './util.js';
 import { W, H } from './sheet.js';
@@ -13,14 +14,11 @@ const RAIN_ANGLE = HALF + 0.2;
 const RAIN_DX = Math.cos(RAIN_ANGLE), RAIN_DY = Math.sin(RAIN_ANGLE);
 
 export class Live {
-  // cast(R) makes the motif's moving parts, given this layer's dice. Each has
-  // resize(view), set(scene), tick(dt), which is true while it needs
-  // redrawing, and draw(ctx, time).
-  constructor(canvas, cast) {
+  constructor(canvas) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
     this.R = makeRng((Math.random() * 4294967296) >>> 0);
-    this.cast = cast(this.R);
+    this.cast = [];
     this.front = [];
     this.rain = [];
     this.rings = [];
@@ -29,6 +27,16 @@ export class Live {
     this.time = 0;
     this.dirty = false;
     this.onLand = null;         // called with a stroke when a leaf comes to rest
+  }
+
+  // Put a motif's moving parts on, in place of whatever was there. cast(R)
+  // makes them, given this layer's dice. Each has resize(view), set(scene),
+  // tick(dt), which is true while it needs redrawing, and draw(ctx, time);
+  // one that should appear in a picture where nothing moves has still() too.
+  stage(cast) {
+    this.cast = cast(this.R);
+    if (this.view) for (const a of this.cast) a.resize(this.view);
+    this.dirty = true;
   }
 
   resize(pw, ph, view) {
@@ -60,8 +68,11 @@ export class Live {
     this.dirty = true;
   }
 
-  // A fixed fall of rain, for when nothing is allowed to move.
+  // For when nothing is allowed to move: the cast hold a pose, and the rain
+  // is a fixed fall of streaks.
   still() {
+    for (const a of this.cast) if (a.still) a.still();
+    this.dirty = true;
     if (!this.env || !this.env.wet) return;
     for (let i = 0; i < 380 * this.view.w / W; i++) {
       const s = this.streak();

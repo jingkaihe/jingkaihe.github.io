@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Jingkai He</title>
-<meta name="description" content="Eden Dock, Canary Wharf, painted stroke by stroke in the browser each time you visit.">
+<meta name="description" content="Eden Dock and Parliament Hill, London, painted stroke by stroke in the browser each time you visit.">
 <meta property="og:title" content="Jingkai He">
-<meta property="og:description" content="Eden Dock, Canary Wharf, painted in the browser each time you visit.">
+<meta property="og:description" content="Eden Dock and Parliament Hill, London, painted in the browser each time you visit.">
 <meta name="theme-color" content="#efeae0" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#16181b" media="(prefers-color-scheme: dark)">
 <link rel="preload" href="assets/fonts/newsreader-italic-latin.woff2" as="font" type="font/woff2" crossorigin>
@@ -31,12 +31,15 @@
       <figcaption class="title"><cite id="title">Eden Dock</cite></figcaption>
     </figure>
 
-    <!-- Each button shows the current season or weather; a click moves on to the next. -->
-    <div class="conditions" id="conditions" role="group" aria-label="Season and weather of the painting">
+    <!-- Each button shows the current place, season or weather; a click moves on to the next. -->
+    <div class="conditions" id="conditions" role="group" aria-label="Place, season and weather of the painting">
+      <button type="button" name="place" aria-label="Place"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-eden-dock"/></svg></button>
       <button type="button" name="season" aria-label="Season"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-spring"/></svg></button>
       <button type="button" name="weather" aria-label="Weather"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-sunny"/></svg></button>
     </div>
     <svg class="sprite" width="0" height="0" aria-hidden="true">
+      <symbol id="i-eden-dock" viewBox="0 0 24 24"><path d="M6.5 15v-5c0-3 5.5-3.5 5.5-6.5 0 3 5.5 3.5 5.5 6.5v5M3 19.5c1.5 1.2 3 1.2 4.5 0s3-1.2 4.5 0 3 1.2 4.5 0 3-1.2 4.5 0"/></symbol>
+      <symbol id="i-parliament-hill" viewBox="0 0 24 24"><path d="M2.5 20.5c3.5-5 6.5-7.5 9.5-7.5s6 2.5 9.5 7.5M16.5 2.5l2.8 3.6-2.8 5-2.8-5zM16.5 11.1c-.3 1.6-1.2 2.7-2.6 3.2"/></symbol>
       <symbol id="i-spring" viewBox="0 0 24 24"><path d="M12 21v-9M12 14c-4.5 0-7-2.2-7-6 4.5 0 7 2.2 7 6zM12 11c0-3.8 2.5-6 7-6 0 3.8-2.5 6-7 6z"/></symbol>
       <symbol id="i-summer" viewBox="0 0 24 24"><circle cx="12" cy="9.5" r="6.5"/><path d="M12 21v-9M12 13.5l2.6-2.6M12 10.8L9.7 8.5"/></symbol>
       <symbol id="i-autumn" viewBox="0 0 24 24"><path transform="rotate(35 12 12)" d="M12 3.5c3.6 2.6 5.5 5.6 5.5 8.7a5.5 5.5 0 0 1-11 0c0-3.1 1.9-6.1 5.5-8.7zM12 8.5V21"/></symbol>
