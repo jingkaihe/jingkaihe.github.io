@@ -125,7 +125,7 @@ export class Live {
       return {
         dot: true, x: R.range(v.x - 10, v.x + v.w + 70), y: -6, vx: R.range(-14, -4), vy: R.range(26, 44), sway: R.range(6, 14),
         freq: R.range(1.5, 3), phase: R.range(0, 6.28), rot: 0, spin: 0, size: R.range(2.2, 3.6), col: this.scene.snow,
-        ground: R.range(505, H + 20), drift: 0, trail: [], since: 0
+        ground: R.range(505, H + 20), drift: 0
       };
     }
     if (!this.sources.length) return null;
@@ -135,7 +135,7 @@ export class Live {
       dot: petal, x: src.x + Math.cos(a) * r * src.rx, y: src.y + Math.sin(a) * r * src.ry * 0.9,
       vx: R.range(-20, -3) * gust, vy: R.range(22, 40) * gust, sway: R.range(12, 26), freq: R.range(2, 3.6), phase: R.range(0, 6.28),
       rot: R.range(0, 3.14), spin: R.range(-4, 4), size: petal ? R.range(2.4, 3.4) : R.range(4.5, 7), col: R.pick(src.cols),
-      ground: afloat ? null : src.base + R.range(-3, 10), drift: afloat ? R.range(10, 150) : 0, trail: [], since: 0
+      ground: afloat ? null : src.base + R.range(-3, 10), drift: afloat ? R.range(10, 150) : 0
     };
   }
 
@@ -179,8 +179,6 @@ export class Live {
       const kept = [];
       for (const f of this.falls) {
         f.phase += f.freq * dt;
-        f.since += dt;
-        if (f.since > 0.045) { f.since = 0; f.trail.push(f.x, f.y, f.rot); if (f.trail.length > 15) f.trail.splice(0, 3); }
         f.x += (f.vx + Math.sin(f.phase) * f.sway) * dt;
         f.y += f.vy * dt;
         f.rot += f.spin * dt;
@@ -208,11 +206,7 @@ export class Live {
     for (const s of this.front) drawStroke(ctx, s);
 
     for (const f of this.falls) {
-      const n = f.trail.length / 3, w = f.dot ? f.size : f.size * 0.68, len = f.dot ? 1 : f.size;
-      for (let i = 0; i < n; i++) {
-        drawStroke(ctx, { x: f.trail[i * 3], y: f.trail[i * 3 + 1], a: f.trail[i * 3 + 2], len, w, col: f.col, alpha: 0.08 + 0.09 * i, round: f.dot, seed: 7 });
-      }
-      drawStroke(ctx, { x: f.x, y: f.y, a: f.rot, len, w, col: f.col, alpha: 0.95, round: f.dot, seed: 7 });
+      drawStroke(ctx, { x: f.x, y: f.y, a: f.rot, len: f.dot ? 1 : f.size, w: f.dot ? f.size : f.size * 0.68, col: f.col, alpha: 0.95, round: f.dot, seed: 7 });
     }
 
     // rain: each streak is pulled like a stroke, then fades
