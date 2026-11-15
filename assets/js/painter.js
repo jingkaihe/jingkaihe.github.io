@@ -4,9 +4,10 @@
 // taken from a blurred reference, then smaller and smaller strokes placed
 // where the reference has detail, with hand-placed accents in between. It is
 // never declared finished: once the planned strokes are down the painter keeps
-// retouching, a little more slowly as time goes on.
+// retouching, a little more slowly as time goes on. Asked to start afresh over
+// a picture, it first brushes that one off.
 
-import { makeRng, clamp, vary } from './util.js';
+import { makeRng, clamp, vary, css } from './util.js';
 import { W, H, RS, idAt } from './sheet.js';
 import { drawStroke } from './brush.js';
 
@@ -32,7 +33,8 @@ const ORDERED = { sketch: true, structure: true, sign: true };                 /
 const GUARDED = { structure: true, figures: true, lights: true, sign: true };  // fine strokes keep off these
 const RETOUCHED = { structure: true, foliage: true, water: true, figures: true, lights: true, sign: true };
 export const SETTLE = 16.5;      // seconds until the planned strokes are down
-const GROUND = '#d9ccb0';        // toned canvas
+const WIPE = 1.7;                // seconds spent brushing an old picture off
+const GROUND = [0.851, 0.8, 0.69];      // toned canvas
 const CELL = 6;
 
 function shuffle(list, R) {
@@ -40,6 +42,27 @@ function shuffle(list, R) {
     const j = Math.floor(R() * (i + 1)), t = list[i];
     list[i] = list[j]; list[j] = t;
   }
+}
+
+// Brushing a picture off: broad strokes of bare ground swept back and forth
+// down the canvas, once thinly and once to finish. They are timed to end as
+// the clock reaches 0, when the new picture's sketch begins.
+function brushOff(view, R) {
+  const list = [], rows = 12, gap = (H + 60) / rows, n = Math.ceil((view.w + 160) / 150);
+  for (let pass = 0; pass < 2; pass++) {
+    for (let r = 0; r < rows; r++) {
+      for (let i = 0; i < n; i++) {
+        const f = (i + 0.5) / n, across = (r + pass) % 2 ? 1 - f : f;      // each row goes back the way the last one came
+        list.push({
+          x: view.x - 80 + (view.w + 160) * across + R.range(-20, 20), y: -30 + (r + 0.5) * gap + R.range(-12, 12),
+          a: R.gauss() * 0.07 + (pass ? 0.05 : -0.05), len: R.range(210, 280), w: gap * R.range(1.35, 1.7),
+          col: vary(GROUND, R, 0.012, 0.004, 0.006), alpha: pass ? 1.25 : 0.82, bend: R.range(-0.05, 0.05), seed: R.seed(),
+          t: -WIPE + (WIPE - 0.15) * (pass * 0.4 + 0.6 * (r + f) / rows)
+        });
+      }
+    }
+  }
+  return list;
 }
 
 function makeProbe(scene) {
@@ -107,10 +130,13 @@ export class Painter {
     this.onFront = null;        // strokes that belong in front of the train are handed over
   }
 
+  // The sheet's size in pixels and the part of the scene it shows. A new size
+  // is a new sheet; on the same one, whatever is painted stays.
   resize(pw, ph, view) {
+    this.view = view;
+    if (pw === this.canvas.width && ph === this.canvas.height) return;
     this.canvas.width = pw;
     this.canvas.height = ph;
-    this.view = view;
     this.blank = true;
   }
 
@@ -121,25 +147,33 @@ export class Painter {
     for (const s of strokes) drawStroke(this.ctx, s);
   }
 
-  begin(scene) {
+  // Plan a picture. A blank sheet gets one from the sketch up; a painted one
+  // is reworked into the new scene, unless this is to be begun afresh, when
+  // the old picture is brushed off and the new one started from its sketch.
+  begin(scene, afresh) {
     const R = this.R = makeRng(scene.seed ^ 0x51ed270b), view = this.view, ctx = this.ctx;
-    const fresh = this.blank;
+    const wipe = afresh && !this.blank, fresh = this.blank || wipe;
     this.blank = false;
     this.scene = scene;
     this.probe = makeProbe(scene);
-    if (fresh) {
+    if (fresh && !wipe) {
       ctx.setTransform(1, 0, 0, 1, 0, 0);
-      ctx.fillStyle = GROUND;
+      ctx.fillStyle = css(GROUND);
       ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
     }
 
-    // A coarse grid remembering where hand-placed marks sit.
+    // A coarse grid remembering where hand-placed marks sit: along the middle
+    // of each, or, for a mark that is to be kept, across its whole width.
     const gw = Math.ceil(W / CELL), gh = Math.ceil(H / CELL), grid = new Uint8Array(gw * gh);
     this.mark = (s) => {
       const dx = Math.cos(s.a), dy = Math.sin(s.a), n = Math.max(1, Math.ceil(s.len / CELL));
-      for (let i = 0; i <= n; i++) {
-        const t = (i / n - 0.5) * s.len, gx = ((s.x + dx * t) / CELL) | 0, gy = ((s.y + dy * t) / CELL) | 0;
-        if (gx >= 0 && gy >= 0 && gx < gw && gy < gh) grid[gy * gw + gx] = 1;
+      const rows = s.kept ? Math.ceil(s.w / CELL) + 1 : 1;
+      for (let j = 0; j < rows; j++) {
+        const off = rows === 1 ? 0 : (j / (rows - 1) - 0.5) * s.w;
+        for (let i = 0; i <= n; i++) {
+          const t = (i / n - 0.5) * s.len, gx = ((s.x + dx * t - dy * off) / CELL) | 0, gy = ((s.y + dy * t + dx * off) / CELL) | 0;
+          if (gx >= 0 && gy >= 0 && gx < gw && gy < gh) grid[gy * gw + gx] = 1;
+        }
       }
     };
     this.guard = (x, y) => {
@@ -157,14 +191,21 @@ export class Painter {
     this.landed = [];
     for (const name in PHASES) {
       if (name === 'sketch' && !fresh) continue;
-      const list = scene.groups[name].filter(inView);
+      let list = scene.groups[name].filter(inView);
       for (const s of list) {
         s.seed = R.seed();
         if (name === 'front') s.front = true;
         if (GUARDED[name]) this.mark(s);
-        if (RETOUCHED[name] && s.alpha >= 0.6) this.pool.push(s);      // thin glazes would build up if repeated
+        // thin glazes would build up if repeated; a kept mark is one of several
+        // laid over each other in order, which going over singly would undo
+        if (RETOUCHED[name] && s.alpha >= 0.6 && !s.kept) this.pool.push(s);
       }
-      if (!ORDERED[name]) shuffle(list, R);
+      if (!ORDERED[name]) {      // in any order, but for the kept marks, which follow as they were listed
+        const kept = list.filter((s) => s.kept);
+        list = list.filter((s) => !s.kept);
+        shuffle(list, R);
+        list = list.concat(kept);
+      }
       spread(list, PHASES[name][0], PHASES[name][1]);
     }
     for (const L of LAYERS) {
@@ -178,11 +219,12 @@ export class Painter {
       list.sort((a, b) => a.key - b.key);
       spread(list, L.start, L.end);
     }
+    if (wipe) for (const s of brushOff(view, R)) queue.push(s);
     queue.sort((a, b) => a.t - b.t);
 
     this.queue = queue;
     this.cursor = 0;
-    this.clock = fresh ? 0 : 0.5;       // reworking an existing picture skips the sketch
+    this.clock = wipe ? -WIPE : fresh ? 0 : 0.5;       // reworking an existing picture skips the sketch
     this.debt = 0;
     this.guests = 0;
     this.nextGuest = SETTLE + 5;
