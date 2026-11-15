@@ -1021,7 +1021,7 @@ function buildScene(season, weather, seed, view) {
   }
 
   function accSign() {
-    const x = view.x + view.w - 58, y = H - 30, ink = env.fogged([0.84, 0.20, 0.13], 0.05);
+    const x = view.x + view.w - 58, y = (view.bottom || H) - 30, ink = env.fogged([0.84, 0.20, 0.13], 0.05);
     const mark = (dx, dy, a, len) => dab('sign', x + dx, y + dy, a, len, 2.3, V(ink, 0.02, 0.01), 0.9, { round: true });
     mark(8, -8, 0, 12); mark(9, 0, HALF + 0.06, 17); mark(5, 6.8, 0.41, 8.5);
     mark(22, 0, HALF + 0.06, 17); mark(33, 0, HALF + 0.06, 17); mark(27.5, 0, -0.12, 11);
@@ -1248,6 +1248,7 @@ export const parliamentHill = {
   sight: 'a meadow falling away to a row of poplars, with London along the horizon from the Shard to the BT Tower under a wide sky',
   wide: { x: 0, w: 1200 },              // the part of the scene space shown: all of it,
   tall: { x: 330, w: 640 },             // or an upright crop for phones
+  trim: 0.75,                           // a wallpaper wider than 3:2 loses height: this share of it from the sky, the rest from the meadow
   build: buildScene,                    // (season, weather, seed, view) gives the scene the painter and live layer work from
   cast: (R) => [new Birds(R), new Kite(R)]      // what moves across it
 };

@@ -9,6 +9,7 @@ import { H } from './sheet.js';
 import { Painter, SETTLE } from './painter.js';
 import { Live } from './live.js';
 import { postcard } from './postcard.js';
+import { wallpaper } from './wallpaper.js';
 
 // The motifs the page can paint, under the names they go by in the address. The first is the one shown unasked.
 const MOTIFS = { 'eden-dock': edenDock, 'parliament-hill': parliamentHill };
@@ -109,6 +110,7 @@ for (const b of buttons) b.addEventListener('click', () => { state[b.name] = aft
 window.addEventListener('hashchange', () => { Object.assign(state, fromHash()); paint(); });
 
 postcard();
+wallpaper(holder, () => Object.assign({ motif }, state));      // the cheat that paints the picture again as a wallpaper
 
 let settle = 0;
 new ResizeObserver(() => {
