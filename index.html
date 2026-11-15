@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Jingkai He</title>
+<meta name="description" content="Jingkai He writes software in London. This page paints Eden Dock, Canary Wharf, stroke by stroke each time you visit.">
+<meta property="og:title" content="Jingkai He">
+<meta property="og:description" content="Eden Dock, Canary Wharf, painted in the browser each time you visit.">
+<meta name="theme-color" content="#efeae0" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#16181b" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='6' fill='%23cf3a22'/%3E%3C/svg%3E">
+<link rel="preload" href="assets/fonts/newsreader-italic-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="assets/fonts/dm-mono-400-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="assets/site.css">
+<script type="module" src="assets/js/main.js"></script>
+</head>
+<body>
+<div class="page">
+  <header class="masthead">
+    <h1 class="name">Jingkai He</h1>
+    <nav aria-label="Elsewhere">
+      <a href="https://github.com/jingkaihe">GitHub</a>
+      <a href="https://til.jingkaihe.com">TIL</a>
+      <a href="https://x.com/he_jingkai">X</a>
+    </nav>
+  </header>
+
+  <main>
+    <figure class="work">
+      <div class="frame">
+        <div class="canvas" id="painting" role="img" aria-label="A painting of Eden Dock at Canary Wharf.">
+          <canvas id="paint"></canvas>
+          <canvas id="live"></canvas>
+          <noscript><p class="nojs">This picture is painted by JavaScript, which is switched off in your browser.</p></noscript>
+        </div>
+      </div>
+      <figcaption class="label">
+        <div>
+          <p class="title"><cite id="title">Eden Dock</cite></p>
+          <p class="medium">JavaScript on canvas<span id="number"></span><span id="count"></span></p>
+        </div>
+        <form class="controls" id="controls">
+          <div class="choice" role="radiogroup" aria-labelledby="season-name">
+            <span class="choice-name" id="season-name">Season</span>
+            <label><input type="radio" name="season" value="spring"><span>Spring</span></label>
+            <label><input type="radio" name="season" value="summer"><span>Summer</span></label>
+            <label><input type="radio" name="season" value="autumn"><span>Autumn</span></label>
+            <label><input type="radio" name="season" value="winter"><span>Winter</span></label>
+          </div>
+          <div class="choice" role="radiogroup" aria-labelledby="weather-name">
+            <span class="choice-name" id="weather-name">Weather</span>
+            <label><input type="radio" name="weather" value="sunny"><span>Sunny</span></label>
+            <label><input type="radio" name="weather" value="cloudy"><span>Cloudy</span></label>
+            <label><input type="radio" name="weather" value="fog"><span>Fog</span></label>
+            <label><input type="radio" name="weather" value="rain"><span>Rain</span></label>
+          </div>
+          <div class="actions">
+            <button type="button" id="again">Paint again</button>
+            <button type="button" id="pause" aria-pressed="false">Pause</button>
+          </div>
+        </form>
+      </figcaption>
+    </figure>
+
+    <section class="about">
+      <div>
+        <p class="lede">Jingkai He writes software in London.</p>
+        <h2 class="kicker">About the painting</h2>
+        <p class="note">Eden Dock at Canary Wharf, worked up from two photographs taken on a bright afternoon. There is no image file behind it. The page works out the scene, paints it stroke by stroke each time you arrive, and keeps retouching for as long as you stay. A DLR train crosses the bridge now and then.</p>
+      </div>
+      <div>
+        <h2 class="kicker">Projects</h2>
+        <ul class="projects">
+          <li><a href="https://github.com/jingkaihe/kodelet">kodelet</a><p>Engineering capabilities, amplified.</p></li>
+          <li><a href="https://github.com/jingkaihe/matchlock">matchlock</a><p>Secures AI agent workloads with a Linux-based sandbox.</p></li>
+          <li><a href="https://github.com/opsmate-ai/opsmate">opsmate</a><p>AI SRE assistant.</p></li>
+        </ul>
+      </div>
+    </section>
+  </main>
+</div>
+</body>
+</html>
