@@ -221,10 +221,10 @@ function buildScene(season, weather, seed, view) {
   }
   // What may come away from a touch of foliage: in spring a petal from a
   // flower, and a leaf from a leaf whenever leaves are falling. The mark is
-  // told where its leaf would settle (base, the ground under the tree). The
+  // told how its leaf comes down (fall, which is its tree's to say). The
   // painter passes such a mark to the live layer once it is on the canvas,
   // and nothing falls from anywhere else.
-  const sheds = (flower, base) => ((env.falling === 'petal' ? flower : env.falling === 'leaf') ? { sheds: base } : null);
+  const sheds = (flower, fall) => ((env.falling === 'petal' ? flower : env.falling === 'leaf') ? { sheds: fall } : null);
   // Bare winter branches, as line segments [x0, y0, x1, y1, width].
   function branches(t) {
     const segs = [], top = t.cy + t.ry * 0.25;
@@ -676,6 +676,7 @@ function buildScene(season, weather, seed, view) {
   function accFoliage() {
     for (const t of trees) {
       const group = 'foliage', cx = t.x + t.lean, birch = t.kind === 'birch';
+      const fall = { to: () => t.base, afloat: true };      // its leaves come down at its foot, or are blown out onto the dock
       for (let y = t.base - 4; y > t.cy; y -= 11) {
         const f = (t.base - y) / (t.base - t.cy);
         dab('foliage', t.x + t.lean * f + R.range(-0.5, 0.5), y, HALF + R.range(-0.05, 0.05), 13, birch ? 3.2 : 2.6, V(env.shade(birch ? A.birch : A.trunk, birch ? 0.85 : 0.3, t.z), 0.03, 0.012, 0.015), 0.92);
@@ -688,7 +689,7 @@ function buildScene(season, weather, seed, view) {
           const ux = Math.cos(ang) * rad, uy = Math.sin(ang) * rad;
           const l = clamp(0.5 + 0.5 * (ux * 0.6 - uy * 0.8) + R.range(-0.25, 0.25), 0, 1) * (t.lit === undefined ? 1 : 0.5 + t.lit * 0.5);
           const flower = inFlower(t);
-          dab(group, cx + ux * t.rx, t.cy + uy * t.ry, R.range(0, Math.PI), R.range(5, 9), R.range(3.4, 5.4), leafColor(t, l, flower), 0.92, sheds(flower, t.base));
+          dab(group, cx + ux * t.rx, t.cy + uy * t.ry, R.range(0, Math.PI), R.range(5, 9), R.range(3.4, 5.4), leafColor(t, l, flower), 0.92, sheds(flower, fall));
         }
       } else {
         for (const s of t.segs) {

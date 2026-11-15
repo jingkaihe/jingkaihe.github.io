@@ -277,10 +277,16 @@ function buildScene(season, weather, seed, view) {
   }
   // What may come away from a touch of foliage: in spring a petal from a
   // flower, and a leaf from a leaf whenever leaves are falling. The mark is
-  // told where its leaf would settle (base, the ground under the tree). The
+  // told how its leaf comes down (fall, which is its tree's to say). The
   // painter passes such a mark to the live layer once it is on the canvas,
   // and nothing falls from anywhere else.
-  const sheds = (flower, base) => ((env.falling === 'petal' ? flower : env.falling === 'leaf') ? { sheds: base } : null);
+  const sheds = (flower, fall) => ((env.falling === 'petal' ? flower : env.falling === 'leaf') ? { sheds: fall } : null);
+  // A leaf keeps to the distance of the tree it leaves. One from the trees
+  // beyond the park is a fleck from here, half the size of a leaf near us and
+  // half as quick, and it is lost to sight where the park hides the foot of
+  // its tree: it never comes down on the meadow. Only the saplings out on the
+  // meadow drop theirs where we see them lie (accFoliage).
+  const beyond = { to: (x) => parkTop(x) - 3, scale: 0.5, lost: true };
 
   // ---------------------------------------------------------------- reference
 
@@ -709,7 +715,7 @@ function buildScene(season, weather, seed, view) {
         if (!shown(x, y)) continue;
         const l = clamp(0.5 + 0.5 * (ux * 0.55 - uy * 0.8) + R.range(-0.25, 0.25), 0, 1) * t.lit;
         const flower = inFlower(t);      // only the nearest rank is close enough for what leaves it to be seen
-        dab('foliage', x, y, R.range(0, Math.PI), R.range(5, 9) * size, R.range(3.4, 5.4) * size, leafColor(t, l, flower), 0.92, t.tier === 2 ? sheds(flower, PATH_Y + 2) : null);
+        dab('foliage', x, y, R.range(0, Math.PI), R.range(5, 9) * size, R.range(3.4, 5.4) * size, leafColor(t, l, flower), 0.92, t.tier === 2 ? sheds(flower, beyond) : null);
         if (snowy && uy < -0.5 && R.chance(0.5)) dab('foliage', x, y - 2, R.range(-0.3, 0.3), R.range(5, 9), 2.4, V(env.shade(A.snow, 1, t.z), 0.02, 0.006), 0.85);
       }
     }
@@ -737,7 +743,7 @@ function buildScene(season, weather, seed, view) {
           : l > 0.62 ? env.shade(q < 0.4 ? mix(poplarSet[0], SUNLIT, 0.3) : poplarSet[0], 1.05, Z.poplar)
           : l < 0.36 ? env.shade(mix(poplarSet[1], VIOLET, R.range(0.1, 0.45)), 0.14, Z.poplar)
           : env.shade(mix(poplarSet[0], poplarSet[1], 0.5), 0.55, Z.poplar);
-        dab('foliage', x, y, -HALF + ux * 0.3 + R.range(-0.15, 0.15), R.range(9, 15), R.range(3, 4.6), V(col, 0.045, 0.03, 0.035), 0.92, sheds(false, PATH_Y + 2));
+        dab('foliage', x, y, -HALF + ux * 0.3 + R.range(-0.15, 0.15), R.range(9, 15), R.range(3, 4.6), V(col, 0.045, 0.03, 0.035), 0.92, sheds(false, beyond));
       }
     }
 
@@ -760,6 +766,7 @@ function buildScene(season, weather, seed, view) {
         const f = (i + 0.5) / 3, x0 = s.x + dx * 8, x1 = s.x + dx * s.rx * 1.4;
         dab('foliage', lerp(x0, x1, f), lerp(s.base, s.cy, f), Math.atan2(s.cy - s.base, x1 - x0), (s.base - s.cy) / 3 * 1.2, 2.2, V(env.shade(A.trunk, 0.3, s.z), 0.03, 0.012, 0.015), 0.9);
       }
+      const fall = { to: () => s.base };      // near enough that its leaves are seen to land: at its foot
       const t = { kind: 'leaf', blossom: s === SHRUBS[0], z: s.z };            // the nearer one is a hawthorn: may blossom
       if (leafless) {
         for (let i = 0; i < 16; i++) {
@@ -770,7 +777,7 @@ function buildScene(season, weather, seed, view) {
         for (let i = 0, n = Math.round(s.rx * s.ry * 0.07 * env.canopy); i < n; i++) {
           const ang = R.range(0, Math.PI * 2), rad = Math.sqrt(R()), ux = Math.cos(ang) * rad, uy = Math.sin(ang) * rad;
           const flower = inFlower(t);
-          dab('foliage', s.x + ux * s.rx, s.cy + uy * s.ry, R.range(0, Math.PI), R.range(5, 9), R.range(3.4, 5.2), leafColor(t, clamp(0.5 + 0.5 * (ux * 0.55 - uy * 0.8) + R.range(-0.25, 0.25), 0, 1), flower), 0.92, sheds(flower, s.base));
+          dab('foliage', s.x + ux * s.rx, s.cy + uy * s.ry, R.range(0, Math.PI), R.range(5, 9), R.range(3.4, 5.2), leafColor(t, clamp(0.5 + 0.5 * (ux * 0.55 - uy * 0.8) + R.range(-0.25, 0.25), 0, 1), flower), 0.92, sheds(flower, fall));
         }
       }
       if (season === 'autumn') for (let i = 0; i < 16; i++) dab('foliage', s.x + R.gauss() * 34, s.base + R.range(-3, 10), R.range(0, Math.PI), R.range(4, 6), R.range(2.8, 3.8), leafColor(t, R()), 0.9);
@@ -1044,8 +1051,8 @@ function buildScene(season, weather, seed, view) {
   return {
     env, view, seed, ref, idMap, groups, arrive, flying,
     regions: REGION,
-    // No open water up here, so no rain rings. top is where the meadow begins:
-    // a leaf caught by the wind comes down somewhere below it.
+    // No open water up here: no rain rings, and nothing for the wind to carry
+    // a leaf out onto. top is where the meadow begins.
     water: { top: () => PATH_Y, open: () => false },
     snowLine: 480,                                                 // the park: snow settles from here down
     rw, rh, refData: c.getImageData(0, 0, rw, rh).data, idData: k.getImageData(0, 0, rw, rh).data,

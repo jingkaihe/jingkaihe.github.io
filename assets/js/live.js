@@ -7,7 +7,11 @@
 //
 // A leaf or a petal never comes out of thin air. It leaves a painted one: the
 // painter passes on each mark that can shed as it lays it, and what falls
-// starts there, in that mark's colour and at its angle.
+// starts there, in that mark's colour and at its angle. Nor does it leave the
+// distance its tree stands at. The mark's sheds says how it comes down: to(x),
+// the height it falls to; scale, how small and slow it looks from here; lost,
+// if it goes out of sight there instead of landing; afloat, if the wind may
+// carry it out onto the water.
 
 import { makeRng, mix } from './util.js';
 import { W, H } from './sheet.js';
@@ -107,18 +111,19 @@ export class Live {
       return {
         dot: true, x: R.range(v.x - 10, v.x + v.w + 70), y: -6, vx: R.range(-14, -4), vy: R.range(26, 44), sway: R.range(6, 14),
         freq: R.range(1.5, 3), phase: R.range(0, 6.28), rot: 0, spin: 0, size: R.range(2.2, 3.6), col: this.scene.snow,
-        ground: R.range(this.scene.snowLine, H + 20), drift: 0
+        ground: R.range(this.scene.snowLine, H + 20)
       };
     }
     if (!this.sources.length) return null;
-    const src = R.pick(this.sources), gust = env.wet ? 1.5 : 1;
+    const src = R.pick(this.sources), fall = src.sheds, k = fall.scale || 1, gust = (env.wet ? 1.5 : 1) * k;
     if (src.alpha < 0.6) return null;      // thinned or put out by its motif: something stands in front of it
-    const petal = env.falling === 'petal', afloat = R.chance(0.45);
+    const petal = env.falling === 'petal', afloat = !!fall.afloat && R.chance(0.45);
     return {
       dot: petal, x: src.x, y: src.y,
-      vx: R.range(-20, -3) * gust, vy: R.range(22, 40) * gust, sway: R.range(12, 26), freq: R.range(2, 3.6), phase: R.range(0, 6.28),
-      rot: src.a, spin: R.range(-4, 4), size: petal ? R.range(2.4, 3.4) : R.range(4.5, 7), col: src.col,
-      ground: afloat ? null : src.sheds + R.range(-3, 10), drift: afloat ? R.range(10, 150) : 0
+      vx: R.range(-20, -3) * gust, vy: R.range(22, 40) * gust, sway: R.range(12, 26) * k, freq: R.range(2, 3.6), phase: R.range(0, 6.28),
+      rot: src.a, spin: R.range(-4, 4), size: (petal ? R.range(2.4, 3.4) : R.range(4.5, 7)) * k, col: src.col,
+      // where it stops: out on the water, or where its tree says, give or take a little if it is to lie there
+      floor: afloat ? this.scene.water.top : fall.to, drop: afloat ? R.range(10, 150) : fall.lost ? 0 : R.range(-3, 10) * k, lost: !!fall.lost
     };
   }
 
@@ -158,10 +163,10 @@ export class Live {
         f.x += (f.vx + Math.sin(f.phase) * f.sway) * dt;
         f.y += f.vy * dt;
         f.rot += f.spin * dt;
-        const ground = f.ground === null ? water.top(f.x) + f.drift : f.ground;
+        const ground = f.floor ? f.floor(f.x) + f.drop : f.ground;      // a leaf's is for its tree to say; a snowflake has its own
         if (f.y < ground) { kept.push(f); continue; }
-        // down: it becomes part of the painting (snow only settles on dry ground)
-        if (this.onLand && f.y < H && f.x > v.x && f.x < v.x + v.w && !(f.dot && f.vy > 25 && env.falling === 'snow' && f.y > water.top(f.x) - 4)) {
+        // down: it becomes part of the painting, unless it has gone out of sight (and snow only settles on dry ground)
+        if (this.onLand && !f.lost && f.y < H && f.x > v.x && f.x < v.x + v.w && !(f.dot && f.vy > 25 && env.falling === 'snow' && f.y > water.top(f.x) - 4)) {
           this.onLand({ x: f.x, y: f.y, a: f.rot, len: f.dot ? 1 : f.size, w: f.dot ? f.size : f.size * 0.68, col: f.col, alpha: 0.92, round: f.dot, seed: R.seed() });
         }
       }
