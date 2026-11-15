@@ -1,28 +1,27 @@
-// Eden Dock, Canary Wharf: the motif.
+// Eden Dock, Canary Wharf: a motif, and everything that belongs to it alone.
 //
 // buildScene() lays the view out as flat shapes on a small hidden canvas (the
 // "reference"), alongside a map of which surface is where. The painter samples
 // both to choose each stroke's colour and direction. It also lists the marks a
 // painter would place by hand: mullions, arches, leaves, figures, lights and
-// glints on the water.
+// glints on the water. After it come the DLR train that crosses the bridge
+// and, last, the edenDock object the page paints from.
 //
-// Coordinates are in a 1200 x 800 scene space. The composition follows the
+// Coordinates are in the 1200 x 800 scene space. The composition follows the
 // wide photograph (stone block, DLR bridge, glass tower) and borrows the
 // stepped terrace, the birches and the arch reflections from the closer one.
 
 import { makeRng, mix, mul, scale, css, clamp, lerp, vary } from './util.js';
-
-export const W = 1200, H = 800;
-export const RS = 0.6;                         // reference canvas scale
-export const SEASONS = ['spring', 'summer', 'autumn', 'winter'];
-export const WEATHERS = ['sunny', 'cloudy', 'fog', 'rain'];
+import { W, H, RS, idCss, makeCanvas, poly, rect, ellipse } from './sheet.js';
+import { environment } from './climate.js';
+import { drawStroke } from './brush.js';
 
 const HALF = Math.PI / 2;
 const HORIZON = 440;
 const VPL = { x: -278, y: HORIZON }, VPR = { x: 940, y: HORIZON };
 const CORNER = { x: 434, y: 41 };              // top of the stone block's near corner
 const STONE_X = 668;                           // right end of the stone block
-export const TOWER_X = 700;                    // left edge of the glass tower
+const TOWER_X = 700;                    // left edge of the glass tower
 const ROWS = 11, COLS_L = 11, COLS_R = 13;
 const BAY = 47, FLOOR = 58;
 const ARCH_TOP = 362, ARCH_BASE = 458, ARCH_S = 72, ARCH_HW = 42;
@@ -37,20 +36,20 @@ const SUN = { x: 150, y: 112 };
 // as the girder is deep (height, at the near edge); only its running gear is
 // lost behind the edge of the deck (sunk).
 const VPT = { x: 1320, y: 443 };
-export const TRACK = { D: 1500, deck0: 346, girder0: 448, height: 118, sunk: 0.14 };
-export const trackK = (s) => TRACK.D / (TRACK.D + s);
-export const trackX = (s) => VPT.x * (1 - trackK(s));
-export const trackS = (x) => TRACK.D * x / (VPT.x - x);      // inverse of trackX
+const TRACK = { D: 1500, deck0: 346, girder0: 448, height: 118, sunk: 0.14 };
+const trackK = (s) => TRACK.D / (TRACK.D + s);
+const trackX = (s) => VPT.x * (1 - trackK(s));
+const trackS = (x) => TRACK.D * x / (VPT.x - x);      // inverse of trackX
 TRACK.far = trackS(TOWER_X);
 const scaleAt = (x) => (VPT.x - x) / VPT.x;                  // k at picture x
 const toVPT = (y0, x) => VPT.y + (y0 - VPT.y) * scaleAt(x);
-export const deckY = (x) => toVPT(TRACK.deck0, x);
-export const girderY = (x) => toVPT(TRACK.girder0, x);
+const deckY = (x) => toVPT(TRACK.deck0, x);
+const girderY = (x) => toVPT(TRACK.girder0, x);
 // The camera this implies; FOCAL makes a step along the track as long as the
 // same step upward. acrossTrack pushes a point [x, y, k] on the track across
 // it, away from the viewer, by w: the far corner of the end of a train.
 const FOCAL = Math.sqrt(TRACK.D * TRACK.D - (VPT.x - W / 2) * (VPT.x - W / 2));
-export function acrossTrack(x, y, k, w) {
+function acrossTrack(x, y, k, w) {
   const shrink = 1 / (1 + (VPT.x - W / 2) / TRACK.D * w * k / FOCAL);
   return [W / 2 + (x - W / 2 - FOCAL / TRACK.D * w * k) * shrink, VPT.y + (y - VPT.y) * shrink, k * shrink];
 }
@@ -60,7 +59,7 @@ export function acrossTrack(x, y, k, w) {
 // view inside until the tower hides it.
 const CANOPY = { x: 642, w: 22, rise: 136, end: TOWER_X - 2 };
 const canopyRoof = (x) => deckY(x) - CANOPY.rise * scaleAt(x);
-export const MOUTH = { x0: CANOPY.x, x1: CANOPY.x + CANOPY.w, deck: deckY(CANOPY.x), top: canopyRoof(CANOPY.x + CANOPY.w) };
+const MOUTH = { x0: CANOPY.x, x1: CANOPY.x + CANOPY.w, deck: deckY(CANOPY.x), top: canopyRoof(CANOPY.x + CANOPY.w) };
 // Point and tangent angle on the mouth's arch, t from the deck (0) to the crown (1).
 function mouthPoint(t, dx) {
   const u = 1 - t, drop = MOUTH.deck - MOUTH.top;
@@ -74,9 +73,10 @@ function canopyTop(x) {
   return MOUTH.top + (MOUTH.deck - MOUTH.top) * u * u;
 }
 
-export const waterY = (x) => 566 + 14 * x / W;
-export const reflectY = (y) => (1 + REFLECT) * WATER_Y - REFLECT * y;
+const waterY = (x) => 566 + 14 * x / W;
+const reflectY = (y) => (1 + REFLECT) * WATER_Y - REFLECT * y;
 const lowDeckY = (x) => waterY(x) - 13;
+const islandAt = (x, y) => Math.abs(x - 575) < 180 && y < 584;      // roughly where the floating island sits in the dock
 
 const leftTop = (x) => CORNER.y + (CORNER.x - x) * 0.5607;
 const rightTop = (x) => CORNER.y + (x - CORNER.x) * 0.7885;
@@ -112,96 +112,15 @@ const A = {
 };
 const BUOYS = [{ x: 745, y: 668, col: A.white }, { x: 760, y: 686, col: A.red }];
 
-const SEASON = {
-  spring: {
-    skyTop: [0.38, 0.62, 0.90], skyLow: [0.82, 0.90, 0.94], sun: [0.72, 0.65, 0.48], amb: [0.42, 0.49, 0.62], haze: 0.16,
-    mist: [0.86, 0.89, 0.87], overcast: [0.80, 0.82, 0.84], sunDisc: [1.0, 0.88, 0.74],
-    leafLit: [0.66, 0.84, 0.30], leafDark: [0.30, 0.62, 0.44], birchLit: [0.80, 0.90, 0.36], birchDark: [0.42, 0.68, 0.40],
-    everLit: [0.46, 0.66, 0.30], everDark: [0.16, 0.42, 0.34], leafAlt: null,
-    blossom: [[0.99, 0.80, 0.86], [1.0, 0.95, 0.95], [0.97, 0.62, 0.76]],
-    flowers: [[1.0, 0.90, 0.35], [1.0, 1.0, 0.95], [0.98, 0.66, 0.78]],
-    grass: [0.60, 0.78, 0.30], water: [0.07, 0.25, 0.26], canopy: 0.85, clouds: 4, crowd: 0.8, snow: 0, lights: 0, parasols: true
-  },
-  summer: {
-    skyTop: [0.20, 0.44, 0.84], skyLow: [0.66, 0.82, 0.94], sun: [0.78, 0.66, 0.44], amb: [0.38, 0.45, 0.62], haze: 0.10,
-    mist: [0.92, 0.88, 0.78], overcast: [0.78, 0.80, 0.84], sunDisc: [1.0, 0.82, 0.56],
-    leafLit: [0.48, 0.72, 0.24], leafDark: [0.18, 0.50, 0.40], birchLit: [0.66, 0.82, 0.28], birchDark: [0.30, 0.58, 0.36],
-    everLit: [0.44, 0.64, 0.28], everDark: [0.14, 0.40, 0.34], leafAlt: null, blossom: null,
-    flowers: [[1.0, 1.0, 0.95], [0.72, 0.52, 0.90]],
-    grass: [0.50, 0.70, 0.26], water: [0.05, 0.22, 0.23], canopy: 1, clouds: 2, crowd: 1, snow: 0, lights: 0, parasols: true
-  },
-  autumn: {
-    skyTop: [0.34, 0.52, 0.80], skyLow: [0.92, 0.86, 0.76], sun: [0.82, 0.62, 0.36], amb: [0.40, 0.43, 0.58], haze: 0.20,
-    mist: [0.93, 0.82, 0.68], overcast: [0.80, 0.79, 0.78], sunDisc: [1.0, 0.62, 0.38],
-    leafLit: [1.0, 0.66, 0.16], leafDark: [0.74, 0.32, 0.22], birchLit: [1.0, 0.86, 0.24], birchDark: [0.80, 0.52, 0.18],
-    everLit: [0.50, 0.60, 0.28], everDark: [0.18, 0.38, 0.30], leafAlt: [[1.0, 0.86, 0.24], [0.90, 0.30, 0.16], [0.62, 0.66, 0.26]], blossom: null,
-    flowers: [[0.95, 0.50, 0.20], [0.80, 0.30, 0.20]],
-    grass: [0.74, 0.66, 0.30], water: [0.10, 0.21, 0.19], canopy: 0.8, clouds: 3, crowd: 0.65, snow: 0, lights: 0.1, parasols: true
-  },
-  winter: {
-    skyTop: [0.52, 0.64, 0.82], skyLow: [0.95, 0.88, 0.82], sun: [0.64, 0.54, 0.44], amb: [0.46, 0.52, 0.66], haze: 0.26,
-    mist: [0.78, 0.80, 0.90], overcast: [0.80, 0.81, 0.86], sunDisc: [1.0, 0.72, 0.64],
-    leafLit: [0.34, 0.50, 0.36], leafDark: [0.16, 0.34, 0.32], birchLit: [0.34, 0.50, 0.36], birchDark: [0.16, 0.34, 0.32],
-    everLit: [0.38, 0.52, 0.38], everDark: [0.16, 0.32, 0.32], leafAlt: null, blossom: null, flowers: null,
-    grass: [0.74, 0.68, 0.50], water: [0.10, 0.19, 0.25], canopy: 0, clouds: 2, crowd: 0.4, snow: 1, lights: 0.25, parasols: false
-  }
-};
-
-// Light and air for one season and weather. shade() gives the colour of a
-// surface from its local colour, how much sun it catches (0..1) and how far
-// away it is (0 near .. 1 far), so every variant stays consistent.
-export function environment(season, weather) {
-  const S = SEASON[season];
-  const e = Object.assign({ season, weather }, S);
-  e.sunny = weather === 'sunny';
-  e.wet = 0;
-  e.fogD = S.haze;
-  e.fogC = mix(S.skyLow, [1, 1, 1], 0.25);
-  if (weather === 'cloudy') {
-    e.skyTop = mix(S.overcast, [0.50, 0.55, 0.66], 0.6);
-    e.skyLow = mix(S.overcast, [1, 1, 1], 0.4);
-    e.sun = scale(S.sun, 0.12);
-    e.amb = mix(S.overcast, [0.92, 0.92, 0.94], 0.55);
-    e.fogC = e.skyLow; e.fogD = 0.32;
-    e.lights = S.lights + 0.25; e.crowd = S.crowd * 0.7;
-  } else if (weather === 'fog') {
-    e.skyTop = mix(S.mist, S.skyTop, 0.12);
-    e.skyLow = S.mist;
-    e.sun = scale(S.sun, 0.08);
-    e.amb = mix([0.86, 0.86, 0.88], S.mist, 0.4);
-    e.fogC = S.mist; e.fogD = 2.4;
-    e.lights = S.lights + 0.6; e.crowd = S.crowd * 0.4;
-  } else if (weather === 'rain') {
-    e.skyTop = mix([0.38, 0.43, 0.54], S.overcast, 0.2);
-    e.skyLow = mix([0.66, 0.70, 0.75], S.overcast, 0.3);
-    e.sun = [0, 0, 0];
-    e.amb = [0.70, 0.73, 0.80];
-    e.fogC = [0.62, 0.67, 0.74]; e.fogD = 0.8;
-    e.wet = 1; e.lights = S.lights + 0.6; e.crowd = S.crowd * 0.3; e.snow = S.snow * 0.4;
-  }
-  e.lights = clamp(e.lights, 0, 1);
-  e.hush = weather === 'fog' ? 0.5 : 1;                    // fog mutes how far colours wander
-  e.lum = (e.amb[0] + e.amb[1] + e.amb[2]) / 3 + (e.sun[0] + e.sun[1] + e.sun[2]) * 0.2;
-  const fogT = (z) => 1 - Math.exp(-e.fogD * z);
-  e.light = (lit) => [e.amb[0] + e.sun[0] * lit, e.amb[1] + e.sun[1] * lit, e.amb[2] + e.sun[2] * lit];
-  e.shade = (albedo, lit, z) => mix(mul(albedo, e.light(lit)), e.fogC, fogT(z));
-  e.fogged = (col, z) => mix(col, e.fogC, fogT(z));
-  e.glow = (col, z) => mix(col, e.fogC, fogT(z) * 0.55);     // lamps carry further through fog
-
-  // What drifts down through the air, and how often (per second).
-  e.falling = { spring: 'petal', summer: weather === 'rain' ? 'leaf' : null, autumn: 'leaf', winter: weather === 'cloudy' ? 'snow' : null }[season];
-  e.fallRate = e.falling === 'snow' ? 7
-    : e.falling === 'petal' ? { sunny: 0.8, cloudy: 0.7, fog: 0.4, rain: 1.3 }[weather]
-    : season === 'summer' ? 0.6 : { sunny: 1.4, cloudy: 1.8, fog: 0.9, rain: 3.2 }[weather];
-  return e;
-}
-
 // Which surface a pixel belongs to, and how that surface likes to be brushed:
 // angle = stroke direction, jit = angular scatter, len/w = size multipliers,
 // dl/dab/temp = how far colour may wander in lightness, chroma and warmth,
-// calm = share of small detail strokes it accepts (open sky wants few).
-export const ID = { sky: 1, cloud: 2, stoneL: 3, stoneR: 4, tower: 5, arch: 6, bridge: 7, misc: 8, deck: 9, foliage: 10, water: 11, pier: 12, grass: 13, far: 14, snow: 15 };
-export const REGION = [];
+// calm = share of small detail strokes it accepts (open sky wants few),
+// loose = its dabs go their own way instead of following edges, ripple = how
+// far sideways a stroke at (x, y) reaches for its colour, which is what breaks
+// up the reflections.
+const ID = { sky: 1, cloud: 2, stoneL: 3, stoneR: 4, tower: 5, arch: 6, bridge: 7, misc: 8, deck: 9, foliage: 10, water: 11, pier: 12, grass: 13, far: 14, snow: 15 };
+const REGION = [];
 REGION[0] = { angle: () => 0, jit: 0.6, len: 0.8, w: 0.9, dl: 0.03, dab: 0.015, temp: 0.015 };
 REGION[ID.sky] = { angle: (x, y) => -0.45 + 0.4 * Math.sin(x / 170 + y / 120), jit: 0.3, len: 1.35, w: 1.1, dl: 0.016, dab: 0.006, temp: 0.008, calm: 0.3 };
 REGION[ID.cloud] = { angle: (x) => 0.15 * Math.sin(x / 90), jit: 0.5, len: 1.1, w: 1.1, dl: 0.022, dab: 0.006, temp: 0.01, calm: 0.5 };
@@ -212,23 +131,12 @@ REGION[ID.arch] = { angle: () => HALF, jit: 0.45, len: 0.7, w: 0.9, dl: 0.03, da
 REGION[ID.bridge] = { angle: (x, y) => Math.atan2(VPT.y - y, VPT.x - x), jit: 0.08, len: 1.1, w: 0.8, dl: 0.03, dab: 0.02, temp: 0.014 };
 REGION[ID.misc] = { angle: () => 0, alt: HALF, altP: 0.4, jit: 0.3, len: 0.7, w: 0.85, dl: 0.03, dab: 0.018, temp: 0.02 };
 REGION[ID.deck] = { angle: () => 0.02, jit: 0.07, len: 1.15, w: 0.75, dl: 0.03, dab: 0.014, temp: 0.024 };
-REGION[ID.foliage] = { angle: () => 0, jit: 1.6, len: 0.45, w: 0.8, dl: 0.045, dab: 0.03, temp: 0.03 };
-REGION[ID.water] = { angle: () => 0, jit: 0.05, len: 1.3, w: 0.62, dl: 0.035, dab: 0.02, temp: 0.018, ripple: true };
+REGION[ID.foliage] = { angle: () => 0, jit: 1.6, len: 0.45, w: 0.8, dl: 0.045, dab: 0.03, temp: 0.03, loose: true };
+REGION[ID.water] = { angle: () => 0, jit: 0.05, len: 1.3, w: 0.62, dl: 0.035, dab: 0.02, temp: 0.018, ripple: (x, y) => Math.sin(y * 0.33 + x * 0.021) * Math.min(7, Math.max(0, (y - 570) * 0.06)) };
 REGION[ID.pier] = { angle: () => HALF, jit: 0.12, len: 0.9, w: 0.9, dl: 0.03, dab: 0.018, temp: 0.02 };
-REGION[ID.grass] = { angle: () => -HALF + 0.1, jit: 0.35, len: 0.4, w: 0.6, dl: 0.045, dab: 0.03, temp: 0.03 };
+REGION[ID.grass] = { angle: () => -HALF + 0.1, jit: 0.35, len: 0.4, w: 0.6, dl: 0.045, dab: 0.03, temp: 0.03, loose: true };
 REGION[ID.far] = { angle: () => HALF, jit: 0.15, len: 0.9, w: 1, dl: 0.02, dab: 0.012, temp: 0.016 };
 REGION[ID.snow] = { angle: () => 0, jit: 0.35, len: 0.8, w: 0.8, dl: 0.02, dab: 0.008, temp: 0.014 };
-
-const idCss = (id) => 'rgb(' + id * 12 + ',' + (id * 53) % 256 + ',0)';
-export function idAt(data, i) {
-  const id = Math.round(data[i] / 12);
-  return data[i] === id * 12 && data[i + 1] === (id * 53) % 256 && data[i + 3] === 255 ? id : 0;
-}
-
-const makeCanvas = (w, h) => { const el = document.createElement('canvas'); el.width = w; el.height = h; return el; };
-const poly = (pts) => { const p = new Path2D(); p.moveTo(pts[0], pts[1]); for (let i = 2; i < pts.length; i += 2) p.lineTo(pts[i], pts[i + 1]); p.closePath(); return p; };
-const rect = (x, y, w, h) => { const p = new Path2D(); p.rect(x, y, w, h); return p; };
-const ellipse = (x, y, rx, ry) => { const p = new Path2D(); p.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2); return p; };
 
 // The tulip-shaped arches at the tower's foot: each side is an S-curve that
 // leaves the apex vertically and lands vertically on the pier.
@@ -251,7 +159,7 @@ function archPoint(cx, side, t) {
 }
 const webPoint = (x, v) => [x, lerp(deckY(x), girderY(x), v)];      // v: 0 at the deck, 1 at the girder's foot
 
-export function buildScene(season, weather, seed, view) {
+function buildScene(season, weather, seed, view) {
   const env = environment(season, weather);
   const R = makeRng(seed);
   const rw = Math.round(W * RS), rh = Math.round(H * RS);
@@ -985,8 +893,211 @@ export function buildScene(season, weather, seed, view) {
 
   return {
     env, view, seed, ref, idMap, groups, sources, arrive, waterCol,
+    regions: REGION,
+    water: { top: waterY, open: (x, y) => !islandAt(x, y) },      // the waterline at x, and whether (x, y) is clear of the island
+    snowLine: 505,                                                 // the quay: snow settles from here down
     rw, rh, refData: c.getImageData(0, 0, rw, rh).data, idData: k.getImageData(0, 0, rw, rh).data,
     bw: small.width, bh: small.height, blurData: sc.getImageData(0, 0, small.width, small.height).data,
     snow: env.shade(A.snow, 1, 0.3)
   };
 }
+
+// ------------------------------------------------------------------ the train
+
+const CAR = 700, GAP = 20, CARS = 2, TRAIN = CARS * CAR + (CARS - 1) * GAP;
+const BODY = 0.78;                         // how wide the train is, as a share of its height
+
+// The side of the train in its own space: u runs back from the nose along the
+// track, v up from the rail (0) to the roof (1). Only what shows above the edge
+// of the deck is modelled. Bands are strokes along the body, posts across it.
+// It is lit as a rounded box: a bright shoulder under the roof, the roof
+// itself curving away, the skirt turning under.
+function buildTrain(R) {
+  const parts = [];
+  const band = (u0, u1, v, th, col, lit, extra) => parts.push(Object.assign({ u0, u1, v, th, col, lit, seed: R.seed() }, extra));
+  const post = (u, v0, v1, wd, col, lit) => parts.push({ u0: u, u1: u, v0, v1, wd, col, lit, post: true, seed: R.seed() });
+  // White cars with a green skirt, green doors and green ends.
+  const whites = [[0.97, 0.97, 0.95], [0.92, 0.94, 0.95], [0.98, 0.96, 0.91]];
+  const greens = [[0.02, 0.64, 0.52], [0.10, 0.72, 0.58], [0.0, 0.56, 0.50]];
+  const glass = [[0.10, 0.13, 0.20], [0.15, 0.17, 0.27]];
+  for (let car = 0; car < CARS; car++) {
+    const o = car * (CAR + GAP), n = 12, seg = CAR / n;
+    for (let i = 0; i < n; i++) {
+      const u0 = o + i * seg, u1 = Math.min(o + CAR, u0 + seg * 1.06);
+      band(u0, u1, 0.18, 0.09, [0.16, 0.15, 0.21], 0.2);
+      band(u0, u1, 0.28, 0.13, R.pick(greens), 1, { mirror: true });
+      band(u0, u1, 0.235, 0.04, [0.0, 0.40, 0.37], 0.45);
+      band(u0, u1, 0.43, 0.19, R.pick(whites), 1, { mirror: true });
+      band(u0, u1, 0.66, 0.28, R.pick(glass), 0.5, { mirror: true });
+      band(u0, u1, 0.855, 0.12, R.pick(whites), 0.95, { mirror: true });
+      band(u0, u1, 0.895, 0.03, [1, 1, 1], 1.3);
+      band(u0, u1, 0.955, 0.09, [0.60, 0.63, 0.68], 0.75);
+      band(u0 + seg * 0.16, u0 + seg * 0.84, 0.665, 0.19, null, 1, { pane: true });
+    }
+    for (const f of [0.13, 0.37, 0.63, 0.87]) {
+      post(o + CAR * f, 0.23, 0.89, 38, R.pick(greens), 1);
+      post(o + CAR * f, 0.54, 0.82, 19, R.pick(glass), 0.5);       // the door's window
+    }
+    for (const u of [o + 9, o + CAR - 9]) post(u, 0.2, 0.92, 20, [0.0, 0.50, 0.44], 0.8);
+    for (const u of [o + 13, o + CAR - 13]) post(u, 0.54, 0.86, 12, [0.09, 0.10, 0.20], 0.4);
+  }
+  band(CAR, CAR + GAP, 0.5, 0.5, [0.12, 0.12, 0.18], 0.2);
+  return parts;
+}
+
+// The end of the train that faces us. a runs across the body from the near
+// corner (0) to the far one (1), v up it as before.
+function buildEnd(R) {
+  const parts = [];
+  const bar = (v, th, col, extra) => parts.push(Object.assign({ a0: -0.06, a1: 1.04, v, th, col, seed: R.seed() }, extra));
+  const upright = (a, v0, v1, wd, col) => parts.push({ a0: a, a1: a, v0, v1, wd, col, post: true, seed: R.seed() });
+  bar(0.18, 0.09, [0.13, 0.13, 0.18]);                       // coupler and underframe
+  bar(0.345, 0.25, [0.04, 0.60, 0.50]);                      // green panel
+  bar(0.585, 0.17, [0.09, 0.11, 0.18]);                      // windscreen
+  bar(0.755, 0.17, null, { pane: true });                    // and the sky in the top of it
+  bar(0.885, 0.1, [0.95, 0.95, 0.93]);                       // white brow
+  bar(0.955, 0.09, [0.60, 0.63, 0.68]);                      // roof
+  upright(0.04, 0.22, 0.93, 0.12, [0.0, 0.50, 0.44]);        // corner pillars
+  upright(0.96, 0.22, 0.93, 0.12, [0.0, 0.44, 0.40]);
+  upright(0.5, 0.5, 0.84, 0.05, [0.05, 0.06, 0.10]);         // centre pillar of the windscreen
+  for (const a of [0.24, 0.76]) parts.push({ a0: a, a1: a, v: 0.41, lamp: true, seed: R.seed() });
+  return parts;
+}
+
+// The DLR, back and forth across the bridge. It is one of the cast: the live
+// layer tells it when the frame or the light changes, moves it on each frame
+// and draws it.
+class Train {
+  constructor(R) {
+    this.R = R;
+    this.parts = buildTrain(R);
+    this.endParts = buildEnd(R);
+    this.active = false;
+    this.dir = 1;
+    this.head = 0;
+    this.wait = 7;
+  }
+
+  resize(view) {
+    this.view = view;
+    this.edge = trackS(view.x);        // where the track meets the left edge of the picture
+  }
+
+  // Take on a new scene's light. A train already on the bridge carries on.
+  set(scene) {
+    const env = this.env = scene.env, lit = env.lights > 0.3;
+    this.water = scene.waterCol;
+    for (const p of this.parts) {
+      if (p.pane) { p.c = lit ? [1, 0.86, 0.54] : mix(env.skyLow, [0.14, 0.16, 0.32], 0.3); p.shade = lit ? p.c : scale(p.c, 0.6); p.glow = lit; }
+      else { p.c = mul(p.col, env.light(p.lit)); p.shade = mul(p.col, env.light(Math.min(p.lit, 0.2))); p.glow = false; }
+    }
+    for (const p of this.endParts) {          // the end is turned away from the sun
+      if (p.lamp) continue;
+      const c = p.pane ? mix(env.skyLow, [0.12, 0.14, 0.26], 0.55) : mul(p.col, env.light(0.12));
+      p.c = scale(c, 0.9); p.shade = scale(c, 0.75);
+    }
+    this.halo = lit;
+    if (!this.active) this.wait = Math.min(this.wait, 7);
+  }
+
+  // Move on. True while it is on the bridge and needs redrawing.
+  tick(dt) {
+    if (this.active) {
+      this.head += this.dir * lerp(120, 70, clamp(this.head / TRACK.far, 0, 1)) * dt;      // slowing into the station
+      const gone = this.dir > 0 ? this.head - TRAIN > TRACK.far + 10 : this.head + TRAIN < this.edge - 30;
+      if (gone) { this.active = false; this.dir = -this.dir; this.wait = this.R.range(14, 28); }
+      return true;
+    }
+    if ((this.wait -= dt) <= 0) {
+      this.active = true;
+      this.head = this.dir > 0 ? this.edge - 20 : TRACK.far + 10;
+    }
+    return false;
+  }
+
+  draw(ctx, time) {
+    if (!this.active) return;
+    const env = this.env, v = this.view, h = TRACK.height, water = this.water;
+    const at = (s, up) => { const k = trackK(s), x = trackX(s); return [x, deckY(x) - (up - TRACK.sunk) * h * k, k]; };
+    const depth = (s) => lerp(0.4, 0.62, clamp(s / TRACK.far, 0, 1));
+    const under = (x) => clamp((x - MOUTH.x0) / (MOUTH.x1 - MOUTH.x0), 0, 1);      // in under the canopy, out of the sun
+    const xr = TOWER_X - 2, mirrors = [];
+    ctx.save();
+    ctx.beginPath();          // above the edge of the deck, and short of the tower, which hides the rest
+    ctx.moveTo(v.x - 4, 0); ctx.lineTo(xr, 0); ctx.lineTo(xr, deckY(xr) + 2); ctx.lineTo(v.x - 4, deckY(v.x - 4) + 2);
+    ctx.closePath();
+    ctx.clip();
+
+    // the side
+    for (const p of this.parts) {
+      let s0 = this.dir > 0 ? this.head - p.u1 : this.head + p.u0;
+      const s1 = this.dir > 0 ? this.head - p.u0 : this.head + p.u1;
+      if (s1 < -620 || s0 > TRACK.far + 30) continue;
+      s0 = Math.max(s0, -620);
+      const z = depth((s0 + s1) / 2), stroke = { alpha: 0.95, seed: p.seed };
+      if (p.post) {
+        const a = at(s0, p.v0), b = at(s0, p.v1);
+        stroke.x = a[0]; stroke.y = (a[1] + b[1]) / 2; stroke.a = HALF; stroke.len = a[1] - b[1]; stroke.w = p.wd * a[2];
+      } else {
+        const a = at(s0, p.v), b = at(s1, p.v);
+        stroke.x = (a[0] + b[0]) / 2; stroke.y = (a[1] + b[1]) / 2; stroke.a = Math.atan2(b[1] - a[1], b[0] - a[0]);
+        stroke.len = Math.hypot(b[0] - a[0], b[1] - a[1]); stroke.w = p.th * h * (a[2] + b[2]) / 2;
+      }
+      if (stroke.x + stroke.len < v.x - 10) continue;
+      const dim = under(stroke.x);
+      stroke.col = p.glow ? env.glow(dim > 0 ? mix(p.c, p.shade, dim) : p.c, z) : env.fogged(dim > 0 ? mix(p.c, p.shade, dim) : p.c, z);
+      drawStroke(ctx, stroke);
+      if (p.mirror && stroke.x < xr) {
+        const ry = reflectY(stroke.y);
+        if (ry > waterY(stroke.x) + 6 && ry < H + 4) {
+          mirrors.push({
+            x: stroke.x + Math.sin(time * 1.4 + ry * 0.21 + (p.seed % 7)) * 2.5, y: ry, a: 0,
+            len: Math.max(7, stroke.len * 0.9), w: Math.max(1.6, stroke.w * 0.6), col: mix(stroke.col, water, 0.3), alpha: 0.5, seed: p.seed
+          });
+        }
+      }
+    }
+
+    // the end that faces us: the tail of a train going away, the front of one coming
+    const se = this.dir > 0 ? this.head - TRAIN : this.head;
+    if (se > -620 && se < TRACK.far) {
+      const z = depth(se), corner = (a, up) => { const p = at(se, up); return acrossTrack(p[0], p[1], p[2], a * BODY * h); };
+      const span = corner(0, 0.5)[0] - corner(1, 0.5)[0], dim = under(corner(0.5, 0.5)[0]);
+      const lamp = env.glow(this.dir > 0 ? [1, 0.22, 0.16] : [1, 0.95, 0.75], z);
+      for (const p of this.endParts) {
+        const stroke = { alpha: 0.96, seed: p.seed };
+        if (p.lamp) {
+          const c = corner(p.a0, p.v);
+          stroke.x = c[0]; stroke.y = c[1]; stroke.a = 0; stroke.len = 1; stroke.w = Math.max(2.5, 0.16 * span); stroke.round = true; stroke.col = lamp;
+          if (this.halo) drawStroke(ctx, Object.assign({}, stroke, { w: stroke.w * 2.8, alpha: 0.22 }));
+        } else {
+          if (p.post) {
+            const a = corner(p.a0, p.v0), b = corner(p.a0, p.v1);
+            stroke.x = a[0]; stroke.y = (a[1] + b[1]) / 2; stroke.a = HALF; stroke.len = a[1] - b[1]; stroke.w = p.wd * span;
+          } else {
+            const a = corner(p.a0, p.v), b = corner(p.a1, p.v);
+            stroke.x = (a[0] + b[0]) / 2; stroke.y = (a[1] + b[1]) / 2; stroke.a = Math.atan2(a[1] - b[1], a[0] - b[0]);
+            stroke.len = Math.hypot(a[0] - b[0], a[1] - b[1]); stroke.w = p.th * h * (a[2] + b[2]) / 2;
+          }
+          stroke.col = env.fogged(dim > 0 ? mix(p.c, p.shade, dim) : p.c, z);
+        }
+        drawStroke(ctx, stroke);
+      }
+    }
+    ctx.restore();
+
+    // and its reflection, broken up by the water
+    for (const m of mirrors) drawStroke(ctx, m);
+  }
+}
+
+// What the page needs in order to paint this place.
+export const edenDock = {
+  title: 'Eden Dock',
+  place: 'Eden Dock at Canary Wharf',
+  sight: 'a pale stone office block, the DLR bridge and a glass tower with pointed arches, reflected in the water',
+  wide: { x: 0, w: 1200 },              // the part of the scene space shown: all of it,
+  tall: { x: 330, w: 640 },             // or an upright crop for phones
+  build: buildScene,                    // (season, weather, seed, view) gives the scene the painter and live layer work from
+  cast: (R) => [new Train(R)]           // what moves across it
+};

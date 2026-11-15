@@ -7,7 +7,7 @@
 // retouching, a little more slowly as time goes on.
 
 import { makeRng, clamp, vary } from './util.js';
-import { W, H, RS, REGION, ID, idAt } from './scene.js';
+import { W, H, RS, idAt } from './sheet.js';
 import { drawStroke } from './brush.js';
 
 const HALF = Math.PI / 2;
@@ -43,7 +43,7 @@ function shuffle(list, R) {
 }
 
 function makeProbe(scene) {
-  const rw = scene.rw, rh = scene.rh, rd = scene.refData, bw = scene.bw, bh = scene.bh, bd = scene.blurData, ids = scene.idData;
+  const rw = scene.rw, rh = scene.rh, rd = scene.refData, bw = scene.bw, bh = scene.bh, bd = scene.blurData, ids = scene.idData, regions = scene.regions;
   const fx = bw / W, fy = bh / H;
   const lum = (ix, iy) => { const i = (iy * rw + ix) * 4; return (0.3 * rd[i] + 0.59 * rd[i + 1] + 0.11 * rd[i + 2]) / 255; };
   const at = (x, y) => (clamp((y * RS) | 0, 0, rh - 1) * rw + clamp((x * RS) | 0, 0, rw - 1)) * 4;
@@ -53,7 +53,7 @@ function makeProbe(scene) {
       const i = (clamp((y * fy) | 0, 0, bh - 1) * bw + clamp((x * fx) | 0, 0, bw - 1)) * 4;
       out[0] = bd[i] / 255; out[1] = bd[i + 1] / 255; out[2] = bd[i + 2] / 255;
     },
-    id(x, y) { return idAt(ids, at(x, y)); },
+    region(x, y) { return regions[idAt(ids, at(x, y))] || regions[0]; },      // how the surface here likes to be brushed
     // Direction along the nearest edge in the reference, or null on flat ground.
     edge(x, y) {
       const ix = clamp(Math.round(x * RS), 1, rw - 2), iy = clamp(Math.round(y * RS), 1, rh - 2);
@@ -67,9 +67,9 @@ const col = [0, 0, 0], soft = [0, 0, 0];
 
 // One stroke of layer L at (x, y), or null if this spot is left alone.
 function strokeAt(L, x, y, R, probe, guard, hush) {
-  const id = probe.id(x, y), reg = REGION[id] || REGION[0];
+  const reg = probe.region(x, y);
   let sx = x;
-  if (reg.ripple) sx += Math.sin(y * 0.33 + x * 0.021) * Math.min(7, Math.max(0, (y - 570) * 0.06));
+  if (reg.ripple) sx += reg.ripple(x, y);
   probe.color(sx, y, col);
   if (L.gain || L.soft) probe.soft(sx, y, soft);
   let keep = L.keep === undefined ? 1 : L.keep;
@@ -80,7 +80,7 @@ function strokeAt(L, x, y, R, probe, guard, hush) {
   if (R() > keep) return null;
   if (L.guarded && guard(x, y)) return null;
   let a = null;
-  if (L.edges && !reg.ripple && id !== ID.foliage && id !== ID.grass && R() < 0.8) a = probe.edge(x, y);
+  if (L.edges && !reg.ripple && !reg.loose && R() < 0.8) a = probe.edge(x, y);
   if (a === null) {
     a = reg.alt !== undefined && R() < reg.altP ? reg.alt : reg.angle(x, y);
     a += R.gauss() * reg.jit;

@@ -2,20 +2,21 @@
 // under the frame, the postcard behind the name, and the frame loop that keeps
 // painter and live layer going.
 
-import { buildScene, SEASONS, WEATHERS, H } from './scene.js';
+import { edenDock as motif } from './eden_dock.js';      // what is on the easel: so far the only motif
+import { SEASONS, WEATHERS } from './climate.js';
+import { H } from './sheet.js';
 import { Painter, SETTLE } from './painter.js';
 import { Live } from './live.js';
 import { postcard } from './postcard.js';
 
 const EFFECT = { sunny: 'Sunlight', cloudy: 'Grey Weather', fog: 'Fog', rain: 'Rain' };
 const SEEN = { sunny: 'in sunshine', cloudy: 'under cloud', fog: 'in fog', rain: 'in the rain' };
-const WIDE = { x: 0, w: 1200 }, TALL = { x: 330, w: 640 };      // phones get an upright crop of the scene
 
 const $ = (id) => document.getElementById(id);
 const holder = $('painting'), buttons = $('conditions').querySelectorAll('button');
 const narrow = matchMedia('(max-width: 640px) and (orientation: portrait)');
 
-const painter = new Painter($('paint')), live = new Live($('live'));
+const painter = new Painter($('paint')), live = new Live($('live'), motif.cast);
 painter.onFront = (s) => live.addFront(s);
 live.onLand = (s) => painter.stamp(s);
 
@@ -44,7 +45,7 @@ function after(name) {
 
 // Size the canvases to the frame. True if they changed enough to need repainting.
 function fit() {
-  const next = narrow.matches ? TALL : WIDE;
+  const next = narrow.matches ? motif.tall : motif.wide;      // phones get an upright crop of the scene
   const pw = Math.min(2400, Math.round(holder.clientWidth * Math.min(window.devicePixelRatio || 1, 2)));
   if (!pw) return false;
   if (next === view && Math.abs(pw - painter.canvas.width) / painter.canvas.width < 0.2) return false;
@@ -58,7 +59,7 @@ function fit() {
 // Start a picture, or rework the one on the canvas into the new season and weather.
 function paint() {
   if (!view) return;
-  const scene = buildScene(state.season, state.weather, state.seed, view);
+  const scene = motif.build(state.season, state.weather, state.seed, view);
   painter.absorb(live.front);
   painter.begin(scene);
   live.set(scene);
@@ -68,9 +69,8 @@ function paint() {
     live.tick(0);
   }
   const season = state.season[0].toUpperCase() + state.season.slice(1);
-  $('title').textContent = 'Eden Dock, ' + EFFECT[state.weather] + ', ' + season;
-  holder.setAttribute('aria-label', 'A painting of Eden Dock at Canary Wharf in ' + state.season + ', ' + SEEN[state.weather] +
-    ': a pale stone office block, the DLR bridge and a glass tower with pointed arches, reflected in the water.');
+  $('title').textContent = motif.title + ', ' + EFFECT[state.weather] + ', ' + season;
+  holder.setAttribute('aria-label', 'A painting of ' + motif.place + ' in ' + state.season + ', ' + SEEN[state.weather] + ': ' + motif.sight + '.');
   for (const b of buttons) {
     b.querySelector('use').setAttribute('href', '#i-' + state[b.name]);
     b.title = b.name[0].toUpperCase() + b.name.slice(1) + ': ' + state[b.name];
