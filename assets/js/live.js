@@ -4,6 +4,10 @@
 // lives on its own canvas above the painting and is redrawn each frame in the
 // same brushwork. The few painted things that stand in front of the cast (the
 // bridge railing, say) are kept here too.
+//
+// A leaf or a petal never comes out of thin air. It leaves a painted one: the
+// painter passes on each mark that can shed as it lays it, and what falls
+// starts there, in that mark's colour and at its angle.
 
 import { makeRng, mix } from './util.js';
 import { W, H } from './sheet.js';
@@ -23,6 +27,7 @@ export class Live {
     this.rain = [];
     this.rings = [];
     this.falls = [];
+    this.sources = [];          // the painted leaves and flowers one may fall from
     this.debt = { rain: 0, ring: 0, fall: 0 };
     this.time = 0;
     this.dirty = false;
@@ -56,7 +61,7 @@ export class Live {
     this.rain = [];
     this.rings = [];
     this.falls = [];
-    this.sources = scene.sources.filter((s) => s.x > this.view.x && s.x < this.view.x + this.view.w);
+    this.sources = [];          // none until the new picture's leaves are painted
     for (const a of this.cast) a.set(scene);
     this.rainLight = mix(env.skyLow, [1, 1, 1], 0.5);
     this.rainDark = mix(env.skyTop, [0.2, 0.24, 0.34], 0.5);
@@ -66,6 +71,11 @@ export class Live {
   addFront(s) {
     this.front.push(s);
     this.dirty = true;
+  }
+
+  // A mark that sheds is on the canvas: from now on a leaf may fall from it.
+  addSource(s) {
+    if (s.x > this.view.x && s.x < this.view.x + this.view.w) this.sources.push(s);
   }
 
   // For when nothing is allowed to move: the cast hold a pose, and the rain
@@ -101,13 +111,14 @@ export class Live {
       };
     }
     if (!this.sources.length) return null;
-    const src = R.pick(this.sources), a = R.range(0, 6.283), r = Math.sqrt(R()), gust = env.wet ? 1.5 : 1;
+    const src = R.pick(this.sources), gust = env.wet ? 1.5 : 1;
+    if (src.alpha < 0.6) return null;      // thinned or put out by its motif: something stands in front of it
     const petal = env.falling === 'petal', afloat = R.chance(0.45);
     return {
-      dot: petal, x: src.x + Math.cos(a) * r * src.rx, y: src.y + Math.sin(a) * r * src.ry * 0.9,
+      dot: petal, x: src.x, y: src.y,
       vx: R.range(-20, -3) * gust, vy: R.range(22, 40) * gust, sway: R.range(12, 26), freq: R.range(2, 3.6), phase: R.range(0, 6.28),
-      rot: R.range(0, 3.14), spin: R.range(-4, 4), size: petal ? R.range(2.4, 3.4) : R.range(4.5, 7), col: R.pick(src.cols),
-      ground: afloat ? null : src.base + R.range(-3, 10), drift: afloat ? R.range(10, 150) : 0
+      rot: src.a, spin: R.range(-4, 4), size: petal ? R.range(2.4, 3.4) : R.range(4.5, 7), col: src.col,
+      ground: afloat ? null : src.sheds + R.range(-3, 10), drift: afloat ? R.range(10, 150) : 0
     };
   }
 

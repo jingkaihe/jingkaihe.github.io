@@ -23,6 +23,7 @@ const narrow = matchMedia('(max-width: 640px) and (orientation: portrait)');
 
 const painter = new Painter($('paint')), live = new Live($('live'));
 painter.onFront = (s) => live.addFront(s);
+painter.onSource = (s) => live.addSource(s);
 live.onLand = (s) => painter.stamp(s);
 
 const seasonNow = () => ['winter', 'winter', 'spring', 'spring', 'spring', 'summer', 'summer', 'summer', 'autumn', 'autumn', 'autumn', 'winter'][new Date().getMonth()];

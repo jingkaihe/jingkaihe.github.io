@@ -128,6 +128,7 @@ export class Painter {
     this.cursor = 0;
     this.clock = 0;
     this.onFront = null;        // strokes that belong in front of the train are handed over
+    this.onSource = null;       // told of each mark a leaf may fall from, as it is laid
   }
 
   // The sheet's size in pixels and the part of the scene it shows. A new size
@@ -249,8 +250,10 @@ export class Painter {
     this.aim();
     let n = 0;
     while (this.cursor < q.length && q[this.cursor].t <= this.clock) {
-      this.put(q[this.cursor++]);
-      if (!unhurried && (++n & 63) === 0 && performance.now() - began > 10) { this.clock = q[this.cursor - 1].t; break; }
+      const s = q[this.cursor++];
+      this.put(s);
+      if (s.sheds !== undefined && this.onSource) this.onSource(s);
+      if (!unhurried && (++n & 63) === 0 && performance.now() - began > 10) { this.clock = s.t; break; }
     }
     if (this.cursor < q.length) return;
 
