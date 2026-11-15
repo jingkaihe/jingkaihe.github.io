@@ -16,12 +16,7 @@
 <body>
 <div class="page">
   <header class="masthead">
-    <h1 class="name">Jingkai He</h1>
-    <nav aria-label="Elsewhere">
-      <a href="https://github.com/jingkaihe">GitHub</a>
-      <a href="https://til.jingkaihe.com">TIL</a>
-      <a href="https://x.com/he_jingkai">X</a>
-    </nav>
+    <h1 class="name"><span id="about-open" role="button" tabindex="0" aria-haspopup="dialog">Jingkai He</span></h1>
   </header>
 
   <main>
@@ -53,5 +48,29 @@
     </svg>
   </main>
 </div>
+<!-- The back of the postcard: opened from the name in the masthead. -->
+<dialog class="postcard" id="about" aria-labelledby="about-name">
+  <div class="card">
+    <div class="message">
+      <h2 id="about-name">Jingkai He</h2>
+      <p>I build software and love computers.</p>
+      <p>I&rsquo;ve worked in the finance, media and gaming industries for the past decade.</p>
+      <p>Currently based in London.</p>
+    </div>
+    <div class="address">
+      <div class="postage" aria-hidden="true">
+        <span class="stamp-edge"><span class="stamp"><canvas id="stamp" width="168" height="216"></canvas></span></span>
+      </div>
+      <p class="for">You might know me for</p>
+      <ul class="lines">
+        <li><a class="project" href="https://github.com/jingkaihe/kodelet"><span class="what">Kodelet</span><span class="where">github.com/jingkaihe/kodelet</span></a></li>
+        <li><a class="project" href="https://github.com/jingkaihe/matchlock"><span class="what">Matchlock</span><span class="where">github.com/jingkaihe/matchlock</span></a></li>
+        <li>Follow me as <a href="https://x.com/he_jingkai">@he_jingkai</a> on X</li>
+        <li>Read my posts at <a href="https://til.jingkaihe.com">TIL</a></li>
+      </ul>
+    </div>
+  </div>
+  <button type="button" class="close" id="about-close" aria-label="Close" autofocus><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></svg></button>
+</dialog>
 </body>
 </html>

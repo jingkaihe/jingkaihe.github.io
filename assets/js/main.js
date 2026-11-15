@@ -1,9 +1,11 @@
 // Wires the painting to the page: the season and weather buttons, the title
-// under the frame, and the frame loop that keeps painter and live layer going.
+// under the frame, the postcard behind the name, and the frame loop that keeps
+// painter and live layer going.
 
 import { buildScene, SEASONS, WEATHERS, H } from './scene.js';
 import { Painter, SETTLE } from './painter.js';
 import { Live } from './live.js';
+import { postcard } from './postcard.js';
 
 const EFFECT = { sunny: 'Sunlight', cloudy: 'Grey Weather', fog: 'Fog', rain: 'Rain' };
 const SEEN = { sunny: 'in sunshine', cloudy: 'under cloud', fog: 'in fog', rain: 'in the rain' };
@@ -79,6 +81,8 @@ function paint() {
 
 for (const b of buttons) b.addEventListener('click', () => { state[b.name] = after(b.name); paint(); });
 window.addEventListener('hashchange', () => { Object.assign(state, fromHash()); paint(); });
+
+postcard();
 
 let settle = 0;
 new ResizeObserver(() => {
