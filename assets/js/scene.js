@@ -46,6 +46,14 @@ const scaleAt = (x) => (VPT.x - x) / VPT.x;                  // k at picture x
 const toVPT = (y0, x) => VPT.y + (y0 - VPT.y) * scaleAt(x);
 export const deckY = (x) => toVPT(TRACK.deck0, x);
 export const girderY = (x) => toVPT(TRACK.girder0, x);
+// The camera this implies; FOCAL makes a step along the track as long as the
+// same step upward. acrossTrack pushes a point [x, y, k] on the track across
+// it, away from the viewer, by w: the far corner of the end of a train.
+const FOCAL = Math.sqrt(TRACK.D * TRACK.D - (VPT.x - W / 2) * (VPT.x - W / 2));
+export function acrossTrack(x, y, k, w) {
+  const shrink = 1 / (1 + (VPT.x - W / 2) / TRACK.D * w * k / FOCAL);
+  return [W / 2 + (x - W / 2 - FOCAL / TRACK.D * w * k) * shrink, VPT.y + (y - VPT.y) * shrink, k * shrink];
+}
 
 // The station canopy the track runs into: an arched mouth, then a roof running
 // back to the tower. MOUTH is the arch the train runs in under; it stays in
