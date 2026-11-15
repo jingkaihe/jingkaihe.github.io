@@ -1053,7 +1053,7 @@ class Kite {
   }
 
   resize(view) {
-    this.view = view;
+    this.home = Math.max(KITE.x, view.x + 110);      // in the upright crop it flies a little further in, to stay in the picture
   }
 
   // Take on a new scene's light. A kite already up stays up; one being
@@ -1088,7 +1088,7 @@ class Kite {
   draw(ctx, time) {
     if (!(this.lift > 0)) return;
     const e = this.lift * this.lift * (3 - 2 * this.lift), gust = this.env.weather === 'cloudy' ? 1.35 : 1, t = time + this.phase, cols = this.cols;
-    const x = lerp(HAND.x - 5, KITE.x + (54 * Math.sin(t * 0.41) + 15 * Math.sin(t * 1.13 + 1.3)) * gust, e);
+    const x = lerp(HAND.x - 5, this.home + (54 * Math.sin(t * 0.41) + 15 * Math.sin(t * 1.13 + 1.3)) * gust, e);
     const y = lerp(HAND.y - 16, KITE.y + (20 * Math.sin(t * 0.83 + 0.5) + 7 * Math.sin(t * 1.9)) * gust, e);
 
     // the line, bellying a little below a straight run to the kite
