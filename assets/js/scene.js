@@ -30,17 +30,40 @@ const ARCHES = [1, 3, 5, 7, 9, 11].map((j) => TOWER_X + j * BAY);
 const WATER_Y = 572, REFLECT = 0.62;
 const SUN = { x: 150, y: 112 };
 
-// The DLR viaduct. Distance along the track (s) maps to the picture through
-// one-point perspective toward VPR; k is the scale at that distance. A train
-// stands a little taller than the girder is deep (height, at the near edge);
-// only its running gear is lost behind the edge of the deck (sunk).
-export const TRACK = { D: 900, deck0: 352, girder0: 446, height: 104, sunk: 0.14, far: 2625 };
+// The DLR viaduct. It recedes to its own vanishing point, further off than the
+// stone block's, so the railway keeps a good size all the way to the station.
+// Distance along the track (s) maps to the picture through one-point
+// perspective; k is the scale at that distance. A train stands about as tall
+// as the girder is deep (height, at the near edge); only its running gear is
+// lost behind the edge of the deck (sunk).
+const VPT = { x: 1320, y: 443 };
+export const TRACK = { D: 1500, deck0: 346, girder0: 448, height: 118, sunk: 0.14 };
 export const trackK = (s) => TRACK.D / (TRACK.D + s);
-export const trackX = (s) => VPR.x * (1 - trackK(s));
-export const trackS = (x) => TRACK.D * x / (VPR.x - x);      // inverse of trackX
-const toVPR = (y0, x) => VPR.y + (y0 - VPR.y) * (VPR.x - x) / VPR.x;
-export const deckY = (x) => toVPR(TRACK.deck0, x);
-export const girderY = (x) => toVPR(TRACK.girder0, x);
+export const trackX = (s) => VPT.x * (1 - trackK(s));
+export const trackS = (x) => TRACK.D * x / (VPT.x - x);      // inverse of trackX
+TRACK.far = trackS(TOWER_X);
+const scaleAt = (x) => (VPT.x - x) / VPT.x;                  // k at picture x
+const toVPT = (y0, x) => VPT.y + (y0 - VPT.y) * scaleAt(x);
+export const deckY = (x) => toVPT(TRACK.deck0, x);
+export const girderY = (x) => toVPT(TRACK.girder0, x);
+
+// The station canopy the track runs into: an arched mouth, then a roof running
+// back to the tower. MOUTH is the arch the train slips under.
+const CANOPY = { x: 642, w: 22, rise: 122, end: TOWER_X - 2 };
+const canopyRoof = (x) => deckY(x) - CANOPY.rise * scaleAt(x);
+export const MOUTH = { x0: CANOPY.x, x1: CANOPY.x + CANOPY.w, deck: deckY(CANOPY.x), top: canopyRoof(CANOPY.x + CANOPY.w) };
+// Point and tangent angle on the mouth's arch, t from the deck (0) to the crown (1).
+function mouthPoint(t, dx) {
+  const u = 1 - t, drop = MOUTH.deck - MOUTH.top;
+  return [MOUTH.x0 + (dx || 0) + CANOPY.w * t * t, MOUTH.top + drop * u * u, Math.atan2(-2 * u * drop, 2 * t * CANOPY.w)];
+}
+// Upper outline of the canopy at picture x (Infinity where there is none).
+function canopyTop(x) {
+  if (x < MOUTH.x0) return Infinity;
+  if (x >= MOUTH.x1) return canopyRoof(x);
+  const u = 1 - Math.sqrt((x - MOUTH.x0) / CANOPY.w);
+  return MOUTH.top + (MOUTH.deck - MOUTH.top) * u * u;
+}
 
 export const waterY = (x) => 566 + 14 * x / W;
 export const reflectY = (y) => (1 + REFLECT) * WATER_Y - REFLECT * y;
@@ -58,11 +81,11 @@ const PLANTERS = [[700, 524, 62, 9], [905, 509, 58, 10], [1040, 539, 54, 9]];
 const PALMS = [803, 895, 990, 1086, 1182];
 const LAMPS = [262, 420, 566, 858, 1012, 1150];
 const TOPIARY = [512, 541];
-// Painted panels along the girder: [top from, top to, bottom from, bottom to, colour]
+// Painted panels on the girder's web, in picture x: [top from, top to, bottom from, bottom to, colour]
 const MURAL = [
-  [-300, 330, -300, 400, 'green'], [110, 185, 30, 105, 'pink'], [300, 372, 372, 444, 'pink'],
-  [640, 1180, 900, 990, 'pale'], [1180, 1500, 990, 1300, 'slate'], [1500, 1800, 1380, 1700, 'green'],
-  [2000, 2300, 2080, 2200, 'pale'], [2300, 2420, 2330, 2450, 'pink'], [2420, 2625, 2450, 2625, 'green']
+  [-470, 252, -470, 289, 'green'], [102, 160, 30, 98, 'pink'], [235, 275, 275, 310, 'pink'],
+  [391, 533, 470, 492, 'pale'], [533, 588, 492, 555, 'slate'], [588, 627, 569, 615, 'green'],
+  [648, 676, 656, 667, 'pale'], [676, 685, 678, 688, 'pink'], [685, 700, 688, 700, 'green']
 ];
 
 // Local colours, before any light falls on them.
@@ -76,7 +99,7 @@ const A = {
   concrete: [0.72, 0.70, 0.70], timberDark: [0.30, 0.23, 0.24], timber: [0.86, 0.76, 0.64], riser: [0.62, 0.46, 0.40],
   paving: [0.88, 0.84, 0.78], orange: [1.0, 0.46, 0.12], earth: [0.36, 0.28, 0.22], trunk: [0.36, 0.28, 0.28],
   birch: [0.96, 0.95, 0.90], snow: [0.96, 0.97, 1.0], lamp: [1.0, 0.84, 0.50], topiary: [0.30, 0.44, 0.24],
-  red: [0.93, 0.20, 0.14]
+  red: [0.93, 0.20, 0.14], fascia: [0.40, 0.30, 0.26], canopy: [0.40, 0.15, 0.17], canopyRib: [0.78, 0.32, 0.27], canopyRim: [0.80, 0.80, 0.82]
 };
 const BUOYS = [{ x: 745, y: 668, col: A.white }, { x: 760, y: 686, col: A.red }];
 
@@ -177,7 +200,7 @@ REGION[ID.stoneL] = { angle: (x, y) => Math.atan2(y - VPL.y, x - VPL.x), alt: HA
 REGION[ID.stoneR] = { angle: (x, y) => Math.atan2(VPR.y - y, VPR.x - x), alt: HALF, altP: 0.3, jit: 0.16, len: 1, w: 1, dl: 0.028, dab: 0.012, temp: 0.026 };
 REGION[ID.tower] = { angle: () => HALF, alt: 0, altP: 0.22, jit: 0.1, len: 1.1, w: 0.9, dl: 0.035, dab: 0.022, temp: 0.022 };
 REGION[ID.arch] = { angle: () => HALF, jit: 0.45, len: 0.7, w: 0.9, dl: 0.03, dab: 0.02, temp: 0.022 };
-REGION[ID.bridge] = { angle: (x, y) => Math.atan2(VPR.y - y, VPR.x - x), jit: 0.08, len: 1.1, w: 0.8, dl: 0.03, dab: 0.02, temp: 0.014 };
+REGION[ID.bridge] = { angle: (x, y) => Math.atan2(VPT.y - y, VPT.x - x), jit: 0.08, len: 1.1, w: 0.8, dl: 0.03, dab: 0.02, temp: 0.014 };
 REGION[ID.misc] = { angle: () => 0, alt: HALF, altP: 0.4, jit: 0.3, len: 0.7, w: 0.85, dl: 0.03, dab: 0.018, temp: 0.02 };
 REGION[ID.deck] = { angle: () => 0.02, jit: 0.07, len: 1.15, w: 0.75, dl: 0.03, dab: 0.014, temp: 0.024 };
 REGION[ID.foliage] = { angle: () => 0, jit: 1.6, len: 0.45, w: 0.8, dl: 0.045, dab: 0.03, temp: 0.03 };
@@ -217,7 +240,7 @@ function archPoint(cx, side, t) {
   const d = (q) => 3 * u * u * (q[1] - q[0]) + 6 * u * t * (q[2] - q[1]) + 3 * t * t * (q[3] - q[2]);
   return [at(px), at(py), Math.atan2(d(py), d(px))];
 }
-const girderPoint = (s, v) => { const x = trackX(s); return [x, lerp(deckY(x), girderY(x), v)]; };
+const webPoint = (x, v) => [x, lerp(deckY(x), girderY(x), v)];      // v: 0 at the deck, 1 at the girder's foot
 
 export function buildScene(season, weather, seed, view) {
   const env = environment(season, weather);
@@ -258,7 +281,7 @@ export function buildScene(season, weather, seed, view) {
   const waterCol = env.shade(env.water, 0.55, 0.08);
 
   const trees = [
-    { x: 628, base: 520, cy: 446, rx: 39, ry: 62, kind: 'birch', z: 0.5, airy: 0.92, lean: -3, front: true },
+    { x: 626, base: 520, cy: 457, rx: 36, ry: 54, kind: 'birch', z: 0.5, airy: 0.92, lean: -3 },
     { x: 216, base: 512, cy: 478, rx: 24, ry: 24, kind: 'leaf', z: 0.5, airy: 1, lean: 2, lit: 0.35, blossom: true },
     { x: 486, base: 508, cy: 483, rx: 16, ry: 17, kind: 'leaf', z: 0.5, airy: 1, lean: 0, blossom: true },
     { x: 731, base: 524, cy: 491, rx: 27, ry: 24, kind: 'leaf', z: 0.36, airy: 1, lean: 1, blossom: true },
@@ -440,11 +463,31 @@ export function buildScene(season, weather, seed, view) {
     g.addColorStop(0, S(A.navy, 0.45, 0.4)); g.addColorStop(1, S(A.navy, 0.45, 0.62));
     fill(poly([-5, deckY(-5), TOWER_X, deckY(TOWER_X), TOWER_X, girderY(TOWER_X), -5, girderY(-5)]), g, ID.bridge);
     for (const m of MURAL) {
-      const zs = lerp(0.4, 0.62, clamp((m[0] + m[1]) / 2 / TRACK.far, 0, 1));
-      fill(poly([].concat(girderPoint(m[0], 0.1), girderPoint(m[1], 0.1), girderPoint(m[3], 0.88), girderPoint(m[2], 0.88))), S(A[m[4]], 0.6, zs));
+      const zs = lerp(0.4, 0.62, clamp((m[0] + m[1]) / 2 / TOWER_X, 0, 1));
+      fill(poly([].concat(webPoint(m[0], 0.27), webPoint(m[1], 0.27), webPoint(m[3], 0.9), webPoint(m[2], 0.9))), S(A[m[4]], 0.6, zs));
     }
+    // the deck's edge: a plain band above the painted web
+    const fg = c.createLinearGradient(0, 0, TOWER_X, 0);
+    fg.addColorStop(0, S(A.fascia, 0.3, 0.4)); fg.addColorStop(1, S(A.fascia, 0.9, 0.62));
+    fill(poly([].concat([-5, deckY(-5), TOWER_X, deckY(TOWER_X)], webPoint(TOWER_X, 0.24), webPoint(-5, 0.24))), fg);
     line([-5, deckY(-5), TOWER_X, deckY(TOWER_X)], S(A.steel, 0.25, 0.5), 4);
     line([-5, girderY(-5), TOWER_X, girderY(TOWER_X)], S(A.steel, 0.1, 0.5), 5);
+
+    // the station canopy: dark inside, ribbed, with a pale rim round its mouth
+    const cp = new Path2D();
+    cp.moveTo(MOUTH.x0, MOUTH.deck);
+    cp.quadraticCurveTo(MOUTH.x0, MOUTH.top, MOUTH.x1, MOUTH.top);
+    cp.lineTo(CANOPY.end, canopyRoof(CANOPY.end)); cp.lineTo(CANOPY.end, deckY(CANOPY.end));
+    cp.closePath();
+    fill(cp, S(A.canopy, 0.3, 0.6), ID.misc);
+    for (const dx of [13, 26, 39]) {
+      const pts = [];
+      for (let i = 0; i <= 6; i++) { const p = mouthPoint(i / 6, dx); if (p[0] < CANOPY.end) pts.push(p[0], p[1]); }
+      if (pts.length > 2) line(pts, S(A.canopyRib, 0.6, 0.6), 2.2, 0.8);
+    }
+    const rim = [];
+    for (let i = 0; i <= 8; i++) { const p = mouthPoint(i / 8); rim.push(p[0], p[1]); }
+    line(rim.concat([CANOPY.end, canopyRoof(CANOPY.end)]), S(A.canopyRim, 0.9, 0.6), 3);
 
     for (const p of [[30, 78], [104, 148]]) {
       const pg = c.createLinearGradient(p[0], 0, p[1], 0);
@@ -514,7 +557,8 @@ export function buildScene(season, weather, seed, view) {
     TIERS.forEach((t) => fill(poly([t[0], t[1], W + 5, t[1], W + 5, t[2] - 1, t[0], t[2] - 1]), white, ID.snow, a * 0.9));
     fill(poly([196, lowDeckY(196), W + 5, lowDeckY(W + 5), W + 5, waterY(W + 5) - 4, 196, waterY(196) - 4]), white, ID.snow, a * 0.85);
     fill(poly([196, 506, W + 5, 506, W + 5, 518, 196, 518]), white, ID.snow, a * 0.6);
-    line([-5, deckY(-5) - 1, TOWER_X, deckY(TOWER_X) - 1], S(A.snow, 1, 0.5), 3.5, a);
+    line([-5, deckY(-5) - 1, MOUTH.x0, MOUTH.deck - 1], S(A.snow, 1, 0.5), 3.5, a);
+    line([MOUTH.x1 - 5, MOUTH.top, CANOPY.end, canopyRoof(CANOPY.end) - 1], S(A.snow, 1, 0.6), 3.5, a);
     line([-5, leftTop(-5) - 4, CORNER.x, CORNER.y - 4, STONE_X, rightTop(STONE_X) - 4], S(A.snow, 1, 0.7), 4, a);
     line([-5, 528, 196, 534], white, 3.5, a);
     line([TOWER_X, ARCH_BASE, W, ARCH_BASE], S(A.snow, 0.6, 0.46), 2, a * 0.8);
@@ -600,7 +644,7 @@ export function buildScene(season, weather, seed, view) {
       const wd = xR((j + 0.72) / COLS_R) - xR((j + 0.28) / COLS_R);
       for (let i = 0; i < ROWS; i++) {
         const y = yR(74.5 + i * 34, xm);
-        if (y > deckY(xm) - 5) continue;
+        if (y > deckY(xm) - 5 || y > canopyTop(xm) - 7) continue;
         const col = R.chance(env.lights * 0.4) ? V(env.glow(A.lamp, zs), 0.03, 0.02) : V(env.shade(A.window, 0.35, zs), 0.05, 0.02, 0.03);
         dab('structure', xm, y, Math.atan2(VPR.y - y, VPR.x - xm), wd * 1.05, 13 * f, col, 0.86);
       }
@@ -666,12 +710,25 @@ export function buildScene(season, weather, seed, view) {
       const along = (group, ya, yb, w, col) => dab(group, (xa + xb) / 2, (ya + yb) / 2, Math.atan2(yb - ya, xb - xa), Math.hypot(xb - xa, yb - ya), w, col, 0.9);
       along('structure', girderY(xa), girderY(xb), 4.5 * kk + 1, V(env.shade(A.steel, 0.1, zb), 0.03, 0.02));
       along('front', deckY(xa) + 1.5 * kk, deckY(xb) + 1.5 * kk, 4 * kk + 1, V(env.shade(cap || A.steel, cap ? 1 : 0.3, zb), 0.03, 0.02));
-      along('front', deckY(xa) - 30 * kk, deckY(xb) - 30 * kk, 1.6 * kk + 0.5, V(env.shade(A.rail, 0.5, zb), 0.03, 0.02));
-      along('front', deckY(xa) - 15 * kk, deckY(xb) - 15 * kk, 1.1 * kk + 0.4, V(env.shade(A.rail, 0.5, zb), 0.03, 0.02));
+      along('front', deckY(xa) - 25 * kk, deckY(xb) - 25 * kk, 1.6 * kk + 0.5, V(env.shade(A.rail, 0.5, zb), 0.03, 0.02));
+      along('front', deckY(xa) - 12 * kk, deckY(xb) - 12 * kk, 1.1 * kk + 0.4, V(env.shade(A.rail, 0.5, zb), 0.03, 0.02));
       for (const ps of [s, s + 43]) {
         const px = trackX(ps), pk = trackK(ps);
-        dab('front', px, deckY(px) - 15 * pk, HALF, 30 * pk, 2.4 * pk + 0.6, V(env.shade(A.railBlue, 0.8, zb), 0.04, 0.03), 0.92);
+        dab('front', px, deckY(px) - 12.5 * pk, HALF, 25 * pk, 2.2 * pk + 0.6, V(env.shade(A.railBlue, 0.8, zb), 0.04, 0.03), 0.92);
       }
+    }
+
+    // station canopy: ribs, the roof's edge, and the rim of the mouth, which
+    // stays in front of the train
+    for (const dx of [13, 26, 39]) for (let i = 0; i < 4; i++) {
+      const p = mouthPoint((i + 0.5) / 4, dx);
+      if (p[0] < CANOPY.end - 2) dab('structure', p[0], p[1], p[2], 17, 2.6, V(env.shade(A.canopyRib, R.range(0.4, 0.8), 0.6), 0.04, 0.03, 0.02), 0.85);
+    }
+    const roofA = Math.atan2(canopyRoof(CANOPY.end) - MOUTH.top, CANOPY.end - MOUTH.x1);
+    for (let x = MOUTH.x1 + 9; x < CANOPY.end; x += 17) dab('structure', x, canopyRoof(x), roofA, 19, 3.4, V(env.shade(cap || A.canopyRim, 0.9, 0.6), 0.03, 0.01, 0.015), 0.92);
+    for (let i = 0; i < 6; i++) {
+      const p = mouthPoint((i + 0.5) / 6);
+      dab('front', p[0], p[1], p[2], 14.5, 3.6, V(env.shade(A.canopyRim, 0.9, 0.6), 0.03, 0.01, 0.015), 0.95);
     }
 
     // quay: terrace treads, piles, piers, parasols, lamp posts
@@ -694,7 +751,7 @@ export function buildScene(season, weather, seed, view) {
 
   function accFoliage() {
     for (const t of trees) {
-      const group = t.front ? 'front' : 'foliage', cx = t.x + t.lean, birch = t.kind === 'birch';
+      const group = 'foliage', cx = t.x + t.lean, birch = t.kind === 'birch';
       for (let y = t.base - 4; y > t.cy; y -= 11) {
         const f = (t.base - y) / (t.base - t.cy);
         dab('foliage', t.x + t.lean * f + R.range(-0.5, 0.5), y, HALF + R.range(-0.05, 0.05), 13, birch ? 3.2 : 2.6, V(env.shade(birch ? A.birch : A.trunk, birch ? 0.85 : 0.3, t.z), 0.03, 0.012, 0.015), 0.92);
@@ -814,6 +871,7 @@ export function buildScene(season, weather, seed, view) {
     }
     if (L > 0.2) {
       for (const x of LAMPS) point(x, 485, 4.4, A.lamp, 0.4);
+      for (const dx of [17, 37]) point(MOUTH.x0 + dx, deckY(MOUTH.x0 + dx) - 30, 3.4, A.lamp, 0.6);      // under the station canopy
       for (let f = 1; f < 7; f++) for (let j = 0; j < 11; j++) {
         if (R.chance(L * 0.22)) dab('lights', TOWER_X + j * BAY + BAY / 2 + R.range(-4, 4), ARCH_TOP - f * FLOOR + FLOOR / 2 + R.range(-4, 4), HALF, R.range(20, 30), R.range(11, 16), V(env.glow(mix(A.lamp, [1, 0.72, 0.42], R()), z), 0.04, 0.03), 0.5);
       }
