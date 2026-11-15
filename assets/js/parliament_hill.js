@@ -1160,7 +1160,7 @@ class Birds {
   // Send a flock off from one side of the picture; or, given a place across
   // it (0..1), set them down there in mid-flight.
   launch(across) {
-    const R = this.R, v = this.view, dir = R.chance(0.5) ? 1 : -1, size = R.range(0.7, 1.35);
+    const R = this.R, v = this.view, dir = R.chance(0.5) ? 1 : -1, size = R.range(0.8, 1.5);      // some flocks nearer than others
     const x = across === undefined ? (dir > 0 ? v.x - 30 : v.x + v.w + 30) : v.x + v.w * across, y = R.range(70, 290);
     this.dir = dir;
     this.speed = R.range(46, 78) * size;
@@ -1169,7 +1169,7 @@ class Birds {
     for (let i = 0, n = R.int(3, 7); i < n; i++) {
       const rank = Math.ceil(i / 2);                     // a loose V behind the leader
       this.flock.push({
-        x: x - dir * rank * R.range(14, 30) * size, y: y + (i % 2 ? 1 : -1) * rank * R.range(5, 11) * size, size: size * R.range(0.85, 1.15),
+        x: x - dir * rank * R.range(18, 36) * size, y: y + (i % 2 ? 1 : -1) * rank * R.range(6, 13) * size, size: size * R.range(0.85, 1.15),
         beat: R.range(5.5, 8), phase: R.range(0, 6.28), seed: R.seed()
       });
     }
@@ -1202,10 +1202,10 @@ class Birds {
   draw(ctx) {
     if (!this.active) return;
     for (const b of this.flock) {
-      const rise = 0.2 + 0.55 * Math.sin(b.phase), span = 7.5 * b.size, y = b.y - rise * 1.5 * b.size;      // the body dips as the wings come up
+      const rise = 0.2 + 0.55 * Math.sin(b.phase), span = 10 * b.size, y = b.y - rise * 2 * b.size;      // the body dips as the wings come up
       for (const side of [-1, 1]) {
         drawStroke(ctx, {
-          x: b.x + side * Math.cos(rise) * span / 2, y: y - Math.sin(rise) * span / 2, a: -side * rise, len: span, w: 1.7 * b.size,
+          x: b.x + side * Math.cos(rise) * span / 2, y: y - Math.sin(rise) * span / 2, a: -side * rise, len: span, w: 2 * b.size,
           col: this.col, alpha: 0.9, round: true, bend: -0.2, seed: b.seed
         });
       }
