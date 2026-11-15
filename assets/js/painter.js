@@ -166,12 +166,13 @@ export class Painter {
     // of each, or, for a mark that is to be kept, across its whole width.
     const gw = Math.ceil(W / CELL), gh = Math.ceil(H / CELL), grid = new Uint8Array(gw * gh);
     this.mark = (s) => {
-      const dx = Math.cos(s.a), dy = Math.sin(s.a), n = Math.max(1, Math.ceil(s.len / CELL));
+      const len = s.kept && s.round ? Math.max(s.len, s.w) : s.len;      // a kept dot is as long as it is wide
+      const dx = Math.cos(s.a), dy = Math.sin(s.a), n = Math.max(1, Math.ceil(len / CELL));
       const rows = s.kept ? Math.ceil(s.w / CELL) + 1 : 1;
       for (let j = 0; j < rows; j++) {
         const off = rows === 1 ? 0 : (j / (rows - 1) - 0.5) * s.w;
         for (let i = 0; i <= n; i++) {
-          const t = (i / n - 0.5) * s.len, gx = ((s.x + dx * t - dy * off) / CELL) | 0, gy = ((s.y + dy * t + dx * off) / CELL) | 0;
+          const t = (i / n - 0.5) * len, gx = ((s.x + dx * t - dy * off) / CELL) | 0, gy = ((s.y + dy * t + dx * off) / CELL) | 0;
           if (gx >= 0 && gy >= 0 && gx < gw && gy < gh) grid[gy * gw + gx] = 1;
         }
       }

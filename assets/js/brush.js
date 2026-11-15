@@ -15,7 +15,7 @@ export function drawStroke(ctx, s) {
   const relief = (nx * -0.55 + ny * -0.83) * 0.11;
   const bend = (s.bend || 0) * len;
   const r = s.col[0] * 255, g = s.col[1] * 255, b = s.col[2] * 255;
-  const ragged = n > 1 ? 0.3 : 0;
+  const ragged = n > 1 ? (s.kept ? 0.06 : 0.3) : 0;      // a kept mark is part of a figure: its ends are all but square, so the parts meet
   ctx.lineCap = s.round || len < w * 1.6 ? 'round' : 'butt';
   ctx.lineWidth = n === 1 ? bw : bw * 1.45;
   for (let i = 0; i < n; i++) {

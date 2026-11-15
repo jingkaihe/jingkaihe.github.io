@@ -106,7 +106,7 @@ const SHRUBS = [{ x: 268, base: 706, cy: 672, rx: 40, ry: 27, z: 0.1 }, { x: 118
 const CHILD = { x: 822, feet: 722, h: 70 };                 // the child going down the trail
 const FLYER = { x: 530, feet: 662 };                        // whoever is flying the kite
 FLYER.h = tall(FLYER.feet);
-const HAND = { x: FLYER.x - 0.2 * FLYER.h, y: FLYER.feet - 0.98 * FLYER.h };      // the raised hand the line runs from
+const HAND = { x: FLYER.x - 0.27 * FLYER.h, y: FLYER.feet - 1.08 * FLYER.h };     // the raised hand the line runs from
 
 // Local colours, before any light falls on them.
 const A = {
@@ -187,7 +187,7 @@ function buildScene(season, weather, seed, view) {
   };
 
   const snowy = env.snow > 0.5, leafless = env.canopy === 0, cap = snowy ? A.snow : null;
-  const flying = weather === 'sunny' || weather === 'cloudy';       // kite weather
+  const flying = season !== 'winter' && (weather === 'sunny' || weather === 'cloudy');       // kite weather
   // Where the grass has dried out in summer; in spring the same drifts are in flower.
   const dry = { spring: mix(env.grass, [1.0, 0.92, 0.36], 0.45), summer: [0.92, 0.82, 0.52], autumn: [0.84, 0.64, 0.36], winter: [0.82, 0.74, 0.54] }[season];
   const lush = mix(env.grass, [0.12, 0.38, 0.22], 0.5);
@@ -506,13 +506,13 @@ function buildScene(season, weather, seed, view) {
   // What stands among the trees, in front of the furthest rank of them.
   const amongTrees = [[HALL.x0 - 4, HALL.ridge - 4, HALL.x1 + 14, HALL.foot], [TERRACE.x0, 403, TERRACE.x1, TERRACE.foot]];
   const within = (list, x, y) => list.some((b) => x > b[0] && x < b[2] && y > b[1] && y < b[3]);
-  // Whatever must stay in front of the marks around it: figures, mostly.
-  // Marks that run under one are thinned at the end, so that the painter's
-  // retouching cannot paint it out.
+  // Whatever must stay in front of the marks around it: the figures and the
+  // signature. Marks that run under one are thinned at the end, so that the
+  // painter's retouching cannot paint it out.
   const boxes = [];
   const under = (s, list) => {
     const dx = Math.cos(s.a) * s.len / 2, dy = Math.sin(s.a) * s.len / 2, m = s.w / 2;
-    for (const b of list) for (const f of [-1, 0, 1]) {
+    for (const b of list) for (const f of [-1, -0.5, 0, 0.5, 1]) {
       const x = s.x + dx * f, y = s.y + dy * f;
       if (x > b[0] - m && x < b[2] + m && y > b[1] - m && y < b[3] + m) return true;
     }
@@ -871,36 +871,64 @@ function buildScene(season, weather, seed, view) {
     }
   }
 
-  // Someone near enough to have limbs: two legs in mid-stride, arms, hair,
-  // perhaps a rucksack. face is the way they are heading (-1 left, 1 right);
-  // reach is a point one hand is raised to. Their marks lie over one another
-  // in a set order, so they are kept: the painter lays them as listed, leaves
-  // them clear, and does not go over them one at a time.
+  // Someone near enough to have limbs, seen from behind and a little to one
+  // side: legs in mid-stride, arms, hair, perhaps a rucksack. face is the way
+  // they are heading (-1 left, 1 right); reach is a point one hand is raised
+  // to; head is its size as a share of their height (a child's is bigger). A
+  // garment is one colour throughout: only the light on it differs from mark
+  // to mark. The marks lie over one another in a set order, each running in
+  // under the next so that head, body and legs join up. So they are kept: the
+  // painter lays them as listed, leaves them clear, and does not go over them
+  // one at a time.
   function figure(x, feet, h, z, look) {
-    const lit = env.sunny ? 0.95 : 0.7, d = look.face;
-    const P = (col, l) => V(env.shade(col, lit * (l || 1), z), 0.03, 0.02, 0.02);
-    const part = (px, py, a, len, w, col, extra) => dab('figures', px, py, a, len, w, col, 0.96, Object.assign({ kept: true }, extra));
-    boxes.push([x - h * 0.24, feet - h * 1.02, x + h * 0.24, feet + 2]);
-    if (env.sunny) dab('figures', x - h * 0.42, feet + 1, 0.12, h * 0.8, h * 0.13, V(env.shade(SHADOW, 0, z), 0.03, 0.02), 0.5);
-    if (env.wet) dab('figures', x, feet + h * 0.3, HALF, h * 0.5, h * 0.2, P(look.top), 0.22);
-    for (const side of [-1, 1]) {
-      part(x + side * d * h * 0.06, feet - h * 0.2, HALF - side * 0.13, h * 0.4, h * 0.085, P(look.legs, side < 0 ? 0.8 : 1));
-      part(x + side * d * h * 0.085 + d * h * 0.02, feet - h * 0.012, 0, h * 0.1, h * 0.05, P(look.shoes));
+    const lit = env.sunny ? 0.95 : 0.7, d = look.face, local = {};
+    for (const key in look) if (Array.isArray(look[key])) local[key] = V(look[key], 0.02, 0.008, 0.01);
+    if (!local.arms) local.arms = local.top;      // sleeves
+    const P = (key, l) => env.shade(local[key], lit * (l === undefined ? 1 : l), z);
+    // A point on them: u ahead of their middle and v up from their feet, as shares of their height.
+    const at = (u, v) => [x + d * u * h, feet - v * h];
+    const limb = (a, b, w, col) => dab('figures', (a[0] + b[0]) / 2, (a[1] + b[1]) / 2, Math.atan2(b[1] - a[1], b[0] - a[0]), Math.hypot(b[0] - a[0], b[1] - a[1]), w * h, col, 0.97, { kept: true });
+    const dot = (p, w, col) => dab('figures', p[0], p[1], 0, 1, w * h, col, 0.97, { round: true, kept: true });
+    const sunward = (p) => [p[0] + 0.06 * h, p[1]];      // the sun is to our right
+    boxes.push([x - h * 0.26, feet - h * 1.02, x + h * 0.26, feet + 2]);
+
+    // their shadow: the grass gone cool and dark, fainter as it runs out
+    if (env.sunny) {
+      const shade = env.shade(mix(snowy ? A.snow : turf(x, feet), SHADOW, 0.55), 0.2, z);
+      dab('figures', x - h * 0.2, feet + 1, 0.1, h * 0.42, h * 0.1, V(shade, 0.03, 0.02), 0.55);
+      dab('figures', x - h * 0.5, feet + 3.5, 0.1, h * 0.34, h * 0.075, V(shade, 0.03, 0.02), 0.34);
     }
-    if (look.shorts) part(x, feet - h * 0.43, 0, h * 0.19, h * 0.15, P(look.shorts));
-    part(x - d * h * 0.1, feet - h * 0.6, HALF + d * 0.2, h * 0.25, h * 0.055, P(look.arms || look.top, 0.85));      // the arm swinging back
-    part(x, feet - h * 0.63, HALF, h * 0.3, h * 0.23, P(look.top));
-    if (look.pack) part(x - d * h * 0.07, feet - h * 0.64, HALF, h * 0.24, h * 0.15, P(look.pack, 0.8));
-    if (look.reach) {
-      const sx = x + d * h * 0.07, sy = feet - h * 0.74, rx = look.reach.x, ry = look.reach.y;
-      part((sx + rx) / 2, (sy + ry) / 2, Math.atan2(ry - sy, rx - sx), Math.hypot(rx - sx, ry - sy), h * 0.055, P(look.arms || look.top));
-      boxes.push([Math.min(sx, rx) - 2, ry - 2, Math.max(sx, rx) + 2, sy]);
-    } else {
-      part(x + d * h * 0.11, feet - h * 0.59, HALF - d * 0.22, h * 0.25, h * 0.055, P(look.arms || look.top));
+
+    // legs, the one behind first, each running up under the body; shorts over the thigh; shoes
+    for (const [fore, l] of [[-1, 0.72], [1, 1]]) {
+      const hip = at(fore * 0.03, 0.6), ankle = at(fore * 0.085, 0.02);
+      limb(hip, ankle, look.shorts ? 0.082 : 0.095, P('legs', l));
+      if (look.shorts) limb(hip, at(fore * 0.052, 0.35), 0.115, P('shorts', l));
+      limb(at(fore * 0.085 - 0.025, 0.016), at(fore * 0.085 + 0.065, 0.016), 0.05, P('shoes', l));
     }
-    part(x, feet - h * 0.86, 0, 1, h * 0.165, P(look.skin), { round: true });
-    part(x - d * h * 0.012, feet - h * 0.9, 0, h * 0.07, h * 0.11, P(look.hair));
-    if (look.hat) part(x, feet - h * 0.945, 0, h * 0.13, h * 0.075, P(look.hat));
+
+    // the arm behind; the body, with the light down one side; the rucksack on its back
+    limb(at(-0.075, 0.8), at(-0.125, 0.5), 0.058, P('arms', 0.72));
+    dot(at(-0.128, 0.475), 0.052, P('skin', 0.72));
+    limb(at(0, 0.47), at(0, 0.83), 0.24, P('top', env.sunny ? 0.72 : 1));
+    if (env.sunny) limb(sunward(at(0, 0.49)), sunward(at(0, 0.82)), 0.105, P('top', 1.1));
+    if (look.pack) {
+      limb(at(-0.05, 0.53), at(-0.05, 0.8), 0.17, P('pack', env.sunny ? 0.72 : 1));
+      if (env.sunny) limb(sunward(at(-0.065, 0.56)), sunward(at(-0.065, 0.78)), 0.05, P('pack', 1.15));
+    }
+
+    // the arm in front, hanging or raised, and its hand
+    const hand = look.reach ? [look.reach.x, look.reach.y] : at(0.128, 0.475);
+    limb(at(0.075, 0.8), look.reach ? hand : at(0.125, 0.5), 0.058, P('arms'));
+    dot(hand, 0.052, P('skin'));
+    if (look.reach) boxes.push([Math.min(hand[0], x) - 3, hand[1] - 3, Math.max(hand[0], x) + 3, feet - h * 0.75]);
+
+    // neck, head, hair over all of it but the face, and a hat
+    const head = look.head || 0.14, crown = 0.99;
+    limb(at(0, 0.8), at(0, crown - head * 0.8), 0.07, P('skin', 0.8));
+    dot(at(0.012, crown - head / 2), head, P('skin'));
+    dot(at(-0.02, crown - head * 0.47), head * 0.94, P('hair'));
+    if (look.hat) limb(at(-0.085, crown - head * 0.28), at(0.085, crown - head * 0.28), head * 0.6, P('hat'));
   }
 
   // Whoever comes along the path.
@@ -918,17 +946,17 @@ function buildScene(season, weather, seed, view) {
     if (idle && season !== 'autumn') for (let i = 0, n = Math.round(7 * env.crowd); i < n; i++) person(R.range(766, 912), 517 + R.range(-2.5, 2), R.range(7, 9), Z.park, false);      // paddling
 
     // the child going down the trail, dressed for the day
-    const skin = skins[1], dark = [0.13, 0.13, 0.17];
-    const look = env.wet ? { top: A.yellow, legs: [0.21, 0.23, 0.34], shoes: A.red, hat: A.yellow }
+    const skin = skins[1], dark = [0.13, 0.13, 0.17], navy = [0.21, 0.23, 0.34];
+    const look = env.wet ? { top: A.yellow, legs: navy, shoes: A.red, hat: A.yellow }
       : season === 'summer' ? { top: dark, legs: skin, shorts: A.blue, arms: skin, shoes: dark }
-      : season === 'winter' ? { top: [0.20, 0.30, 0.56], legs: dark, shoes: dark, hat: A.red }
-      : { top: A.red, legs: [0.21, 0.23, 0.34], shoes: dark };
-    figure(CHILD.x, CHILD.feet, CHILD.h, meadowZ(CHILD.feet), Object.assign({ skin, hair: [0.12, 0.10, 0.10], pack: [0.20, 0.20, 0.25], face: -1 }, look));
+      : season === 'winter' ? { top: [0.80, 0.58, 0.18], legs: dark, shoes: dark, hat: A.red }
+      : { top: A.red, legs: navy, shoes: dark };
+    figure(CHILD.x, CHILD.feet, CHILD.h, meadowZ(CHILD.feet), Object.assign({ skin, hair: [0.12, 0.10, 0.10], pack: [0.20, 0.27, 0.44], head: 0.17, face: -1 }, look));
 
     // and, in kite weather, whoever holds the line
     if (flying) {
       figure(FLYER.x, FLYER.feet, FLYER.h, meadowZ(FLYER.feet), {
-        top: season === 'winter' ? [0.48, 0.11, 0.15] : A.white, legs: [0.21, 0.23, 0.34], shoes: dark, skin: skins[0], hair: [0.36, 0.24, 0.16],
+        top: season === 'autumn' ? [0.74, 0.52, 0.28] : A.white, legs: navy, shoes: dark, skin: skins[0], hair: [0.36, 0.24, 0.16],
         arms: season === 'summer' ? skins[0] : null, face: -1, reach: HAND
       });
     }
@@ -981,6 +1009,7 @@ function buildScene(season, weather, seed, view) {
     const mark = (dx, dy, a, len) => dab('sign', x + dx, y + dy, a, len, 2.3, V(ink, 0.02, 0.01), 0.9, { round: true });
     mark(8, -8, 0, 12); mark(9, 0, HALF + 0.06, 17); mark(5, 6.8, 0.41, 8.5);
     mark(22, 0, HALF + 0.06, 17); mark(33, 0, HALF + 0.06, 17); mark(27.5, 0, -0.12, 11);
+    boxes.push([x - 3, y - 13, x + 39, y + 13]);
   }
 
   accSketch(); accStructure(); accFigures(); accFoliage(); accLights(); accWater(); accWeather(); accSign();
