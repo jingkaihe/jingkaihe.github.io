@@ -67,7 +67,9 @@ a { color: inherit; }
   text-decoration-color: transparent;
   transition: text-decoration-color 0.15s;
 }
-.name [role="button"]:hover { text-decoration-color: currentColor; }
+@media (hover: hover) {      /* not on touch screens, where a hover would stick after the tap */
+  .name [role="button"]:hover { text-decoration-color: currentColor; }
+}
 
 /* ---- the painting ---- */
 
@@ -199,6 +201,7 @@ a { color: inherit; }
 
 .message { padding-right: clamp(1.25rem, 3vw, 2.25rem); }
 .message h2 { margin: 0 0 1.4rem; font: 500 1.75rem/1.15 var(--serif); letter-spacing: -0.01em; }
+.message h2:focus { outline: none; }      /* it holds focus while the card is open, so that nothing looks selected */
 .message p { margin: 0 0 0.9rem; font: italic 400 1.2rem/1.45 var(--serif); text-wrap: pretty; }
 .message p:last-child { margin-bottom: 0; }
 

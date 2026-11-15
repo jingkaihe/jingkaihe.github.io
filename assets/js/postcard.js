@@ -57,14 +57,20 @@ function paint(ctx, strokes, still) {
 }
 
 export function postcard() {
-  const card = $('about'), name = $('about-open'), canvas = $('stamp'), ctx = canvas.getContext('2d');
+  const card = $('about'), name = $('about-open'), heading = $('about-name'), canvas = $('stamp'), ctx = canvas.getContext('2d');
   const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
   let painted = false;
   ctx.fillStyle = GROUND;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  function open() {
+  // Opened by touch or mouse, nothing should be left looking focused: the name
+  // lets go of focus first, so there is none to hand back when the card closes,
+  // and the card's heading takes it rather than the x. Opened from the
+  // keyboard, focus returns to the name afterwards.
+  function open(byKey) {
+    if (!byKey) name.blur();
     card.showModal();
+    if (document.activeElement !== heading) heading.focus();
     if (painted) return;
     painted = true;
     const img = new Image();
@@ -73,8 +79,8 @@ export function postcard() {
   }
 
   // The name is plain text, so it gets the keys a button would have.
-  name.addEventListener('click', open);
-  name.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } });
+  name.addEventListener('click', () => open(false));
+  name.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(true); } });
   $('about-close').addEventListener('click', () => card.close());
   card.addEventListener('click', (e) => { if (e.target === card) card.close(); });      // a click on the wall beside the card
 }
