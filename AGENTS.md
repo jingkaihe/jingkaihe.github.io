@@ -4,7 +4,7 @@ Personal site: one page that paints a place (Eden Dock at Canary Wharf, or Parli
 
 ## Layout
 
-- `index.html`: the name (which opens the postcard), the framed canvas, its title, the place, season and weather buttons and their icon sprite, and the postcard dialog (bio and links).
+- `index.html`: the name (which opens the postcard), the framed canvas, its title, the place button (the place's name in words), the season and weather buttons and their icon sprite, and the postcard dialog (bio and links).
 - `assets/site.css`: page styles. Light and dark follow the system setting.
 - `assets/js/eden_dock.js`: Eden Dock, the first motif, and everything particular to it. `buildScene` draws a flat reference of the view plus a surface map on hidden canvases, and lists the hand-placed marks (structure, foliage, figures, lights, water). The file also says how each surface is brushed (`REGION`), holds the DLR train, and ends with the `edenDock` object the page paints from.
 - `assets/js/parliament_hill.js`: Parliament Hill, the second motif, laid out the same way and painted as an Impressionist would: broken colour in the grass, cool shadows, a city lost in haze (the `Z` depths run well past 1). Its cast is a kite and passing birds. Ends with the `parliamentHill` object.
@@ -24,7 +24,7 @@ Personal site: one page that paints a place (Eden Dock at Canary Wharf, or Parli
 
 ## Another motif
 
-A motif (a scene the page can paint) is one module like `eden_dock.js`. It exports an object with `title`, `place` and `sight` (for the title and the description read to screen readers), `wide` and `tall` (the crops), `build(season, weather, seed, view)` and `cast(R)` (its moving parts). `main.js` is the only file that names the motifs: import the new one, add it to `MOTIFS` under the name it goes by in the address, and give it an icon in the sprite in `index.html` with the id `i-` plus that name. What `build` returns is read by `painter.js` and `live.js`: `env`, `groups` (named as in the painter's `PHASES`), `regions`, the reference, surface map and blurred reference as pixel data, `sources`, `arrive`, `water`, `snowLine` and `snow`.
+A motif (a scene the page can paint) is one module like `eden_dock.js`. It exports an object with `title`, `place` and `sight` (for the title and the description read to screen readers), `wide` and `tall` (the crops), `build(season, weather, seed, view)` and `cast(R)` (its moving parts). `main.js` is the only file that names the motifs: import the new one and add it to `MOTIFS` under the name it goes by in the address; the place button reads its `title`. What `build` returns is read by `painter.js` and `live.js`: `env`, `groups` (named as in the painter's `PHASES`), `regions`, the reference, surface map and blurred reference as pixel data, `sources`, `arrive`, `water`, `snowLine` and `snow`.
 
 - Keep each surface's `len` and `w` in `REGION` near 1 unless it is small: the first two passes are what cover the canvas, and short narrow strokes leave the toned ground showing through.
 - A hand-placed mark with `kept: true` belongs to something built from marks that overlap in a set order (a figure near enough to have limbs). The painter lays kept marks last in their group, in the order listed, keeps fine strokes off their whole width, and does not retouch them one at a time.

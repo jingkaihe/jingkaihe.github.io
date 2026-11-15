@@ -96,7 +96,8 @@ function paint() {
   $('title').textContent = motif.title + ', ' + EFFECT[state.weather] + ', ' + season;
   holder.setAttribute('aria-label', 'A painting of ' + motif.place + ' in ' + state.season + ', ' + SEEN[state.weather] + ': ' + motif.sight + '.');
   for (const b of buttons) {
-    b.querySelector('use').setAttribute('href', '#i-' + state[b.name]);
+    if (b.name === 'place') b.textContent = motif.title;      // the place is spelt out; season and weather are icons
+    else b.querySelector('use').setAttribute('href', '#i-' + state[b.name]);
     b.title = b.name[0].toUpperCase() + b.name.slice(1) + ': ' + said(b.name, state[b.name]);
     b.setAttribute('aria-label', b.title + '. Switch to ' + said(b.name, after(b.name)) + '.');
   }
