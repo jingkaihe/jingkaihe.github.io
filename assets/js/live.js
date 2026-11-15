@@ -14,8 +14,8 @@ const RAIN_ANGLE = HALF + 0.2;
 const RAIN_DX = Math.cos(RAIN_ANGLE), RAIN_DY = Math.sin(RAIN_ANGLE);
 
 // The train in its own space: u runs back from the nose along the track, v up
-// from the rail (0) to the roof (1). Only what shows above the bridge parapet
-// is modelled. Bands are strokes along the body, posts across it.
+// from the rail (0) to the roof (1). Only what shows above the edge of the
+// deck is modelled. Bands are strokes along the body, posts across it.
 function buildTrain(R) {
   const parts = [];
   const band = (u0, u1, v, th, col, lit, extra) => parts.push(Object.assign({ u0, u1, v, th, col, lit, seed: R.seed() }, extra));
@@ -28,20 +28,21 @@ function buildTrain(R) {
     const o = car * (CAR + GAP), n = 14, seg = CAR / n;
     for (let i = 0; i < n; i++) {
       const u0 = o + i * seg, u1 = Math.min(o + CAR, u0 + seg * 1.06);
-      band(u0, u1, 0.43, 0.15, R.pick(whites), 1, { mirror: true });
-      band(u0, u1, 0.525, 0.06, R.pick(greens), 1);
-      band(u0, u1, 0.68, 0.25, R.pick(glass), 0.5, { mirror: true });
-      band(u0, u1, 0.855, 0.11, R.pick(whites), 0.95, { mirror: true });
+      band(u0, u1, 0.18, 0.09, [0.16, 0.15, 0.21], 0.2);
+      band(u0, u1, 0.28, 0.13, R.pick(greens), 1, { mirror: true });
+      band(u0, u1, 0.43, 0.19, R.pick(whites), 1, { mirror: true });
+      band(u0, u1, 0.66, 0.28, R.pick(glass), 0.5, { mirror: true });
+      band(u0, u1, 0.855, 0.12, R.pick(whites), 0.95, { mirror: true });
       band(u0, u1, 0.955, 0.09, [0.70, 0.73, 0.76], 1);
-      band(u0 + seg * 0.16, u0 + seg * 0.84, 0.685, 0.17, null, 1, { pane: true });
+      band(u0 + seg * 0.16, u0 + seg * 0.84, 0.665, 0.19, null, 1, { pane: true });
     }
-    for (const f of [0.13, 0.37, 0.63, 0.87]) post(o + CAR * f, 0.37, 0.89, 30, R.pick(greens), 1);
-    for (const u of [o + 8, o + CAR - 8]) post(u, 0.37, 0.92, 18, [0.0, 0.50, 0.44], 0.8);
-    for (const u of [o + 13, o + CAR - 13]) post(u, 0.56, 0.86, 12, [0.09, 0.10, 0.20], 0.4);
+    for (const f of [0.13, 0.37, 0.63, 0.87]) post(o + CAR * f, 0.23, 0.89, 30, R.pick(greens), 1);
+    for (const u of [o + 8, o + CAR - 8]) post(u, 0.2, 0.92, 18, [0.0, 0.50, 0.44], 0.8);
+    for (const u of [o + 13, o + CAR - 13]) post(u, 0.54, 0.86, 12, [0.09, 0.10, 0.20], 0.4);
   }
-  band(CAR, CAR + GAP, 0.6, 0.34, [0.12, 0.12, 0.18], 0.2);
-  parts.push({ u0: 3, u1: 3, v: 0.44, dot: true, lamp: [1, 0.95, 0.75], seed: R.seed() });
-  parts.push({ u0: TRAIN - 3, u1: TRAIN - 3, v: 0.44, dot: true, lamp: [1, 0.22, 0.16], seed: R.seed() });
+  band(CAR, CAR + GAP, 0.5, 0.5, [0.12, 0.12, 0.18], 0.2);
+  parts.push({ u0: 3, u1: 3, v: 0.3, dot: true, lamp: [1, 0.95, 0.75], seed: R.seed() });
+  parts.push({ u0: TRAIN - 3, u1: TRAIN - 3, v: 0.3, dot: true, lamp: [1, 0.22, 0.16], seed: R.seed() });
   return parts;
 }
 

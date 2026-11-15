@@ -10,7 +10,7 @@ const SEEN = { sunny: 'in sunshine', cloudy: 'under cloud', fog: 'in fog', rain:
 const WIDE = { x: 0, w: 1200 }, TALL = { x: 330, w: 640 };      // phones get an upright crop of the scene
 
 const $ = (id) => document.getElementById(id);
-const holder = $('painting'), form = $('conditions');
+const holder = $('painting'), buttons = $('conditions').querySelectorAll('button');
 const narrow = matchMedia('(max-width: 640px) and (orientation: portrait)');
 
 const painter = new Painter($('paint')), live = new Live($('live'));
@@ -33,6 +33,12 @@ const state = Object.assign({
   seen: true
 }, fromHash());
 let view = null;
+
+// What a click on the season or weather button moves on to.
+function after(name) {
+  const list = name === 'season' ? SEASONS : WEATHERS;
+  return list[(list.indexOf(state[name]) + 1) % list.length];
+}
 
 // Size the canvases to the frame. True if they changed enough to need repainting.
 function fit() {
@@ -63,12 +69,15 @@ function paint() {
   $('title').textContent = 'Eden Dock, ' + EFFECT[state.weather] + ', ' + season;
   holder.setAttribute('aria-label', 'A painting of Eden Dock at Canary Wharf in ' + state.season + ', ' + SEEN[state.weather] +
     ': a pale stone office block, the DLR bridge and a glass tower with pointed arches, reflected in the water.');
-  form.elements.season.value = state.season;
-  form.elements.weather.value = state.weather;
+  for (const b of buttons) {
+    b.querySelector('use').setAttribute('href', '#i-' + state[b.name]);
+    b.title = b.name[0].toUpperCase() + b.name.slice(1) + ': ' + state[b.name];
+    b.setAttribute('aria-label', b.title + '. Switch to ' + after(b.name) + '.');
+  }
   history.replaceState(null, '', '#' + state.season + '-' + state.weather);
 }
 
-form.addEventListener('change', (e) => { state[e.target.name] = e.target.value; paint(); });
+for (const b of buttons) b.addEventListener('click', () => { state[b.name] = after(b.name); paint(); });
 window.addEventListener('hashchange', () => { Object.assign(state, fromHash()); paint(); });
 
 let settle = 0;

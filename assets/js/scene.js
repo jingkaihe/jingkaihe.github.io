@@ -31,10 +31,10 @@ const WATER_Y = 572, REFLECT = 0.62;
 const SUN = { x: 150, y: 112 };
 
 // The DLR viaduct. Distance along the track (s) maps to the picture through
-// one-point perspective toward VPR; k is the scale at that distance. A train is
-// about as tall as the girder is deep (height, at the near edge) and rides low
-// enough that the parapet hides the bottom third of it (sunk).
-export const TRACK = { D: 900, deck0: 352, girder0: 446, height: 100, sunk: 0.36, far: 2625 };
+// one-point perspective toward VPR; k is the scale at that distance. A train
+// stands a little taller than the girder is deep (height, at the near edge);
+// only its running gear is lost behind the edge of the deck (sunk).
+export const TRACK = { D: 900, deck0: 352, girder0: 446, height: 104, sunk: 0.14, far: 2625 };
 export const trackK = (s) => TRACK.D / (TRACK.D + s);
 export const trackX = (s) => VPR.x * (1 - trackK(s));
 export const trackS = (x) => TRACK.D * x / (VPR.x - x);      // inverse of trackX
