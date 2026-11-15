@@ -4,8 +4,8 @@
 // brushwork. The few painted things that stand in front of the train (the
 // bridge railing, the rim of the station canopy) are kept here too.
 
-import { makeRng, mix, mul, clamp, lerp } from './util.js';
-import { W, H, TRACK, MOUTH, trackK, trackX, trackS, deckY, waterY, reflectY } from './scene.js';
+import { makeRng, mix, mul, scale, clamp, lerp } from './util.js';
+import { W, H, TRACK, MOUTH, TOWER_X, trackK, trackX, trackS, deckY, waterY, reflectY } from './scene.js';
 import { drawStroke } from './brush.js';
 
 const HALF = Math.PI / 2;
@@ -68,7 +68,6 @@ export class Live {
     this.canvas.height = ph;
     this.view = view;
     this.edge = trackS(view.x);        // where the track meets the left edge of the picture
-    this.end = trackS(MOUTH.x1);       // and where it runs in under the station canopy
     this.dirty = true;
   }
 
@@ -85,9 +84,9 @@ export class Live {
     this.sources = scene.sources.filter((s) => s.x > this.view.x && s.x < this.view.x + this.view.w);
     const lit = env.lights > 0.3;
     for (const p of this.parts) {
-      if (p.lamp) { p.c = p.lamp; p.glow = true; }
-      else if (p.pane) { p.c = lit ? [1, 0.86, 0.54] : mix(env.skyLow, [0.14, 0.16, 0.32], 0.3); p.glow = lit; }
-      else { p.c = mul(p.col, env.light(p.lit)); p.glow = false; }
+      if (p.lamp) { p.c = p.shade = p.lamp; p.glow = true; }
+      else if (p.pane) { p.c = lit ? [1, 0.86, 0.54] : mix(env.skyLow, [0.14, 0.16, 0.32], 0.3); p.shade = lit ? p.c : scale(p.c, 0.6); p.glow = lit; }
+      else { p.c = mul(p.col, env.light(p.lit)); p.shade = mul(p.col, env.light(Math.min(p.lit, 0.2))); p.glow = false; }
     }
     this.rainLight = mix(env.skyLow, [1, 1, 1], 0.5);
     this.rainDark = mix(env.skyTop, [0.2, 0.24, 0.34], 0.5);
@@ -147,13 +146,13 @@ export class Live {
     let busy = this.dirty;
 
     if (tr.active) {
-      tr.head += tr.dir * lerp(120, 70, clamp(tr.head / this.end, 0, 1)) * dt;      // slowing into the station
-      const gone = tr.dir > 0 ? tr.head - TRAIN > this.end + 10 : tr.head + TRAIN < this.edge - 30;
+      tr.head += tr.dir * lerp(120, 70, clamp(tr.head / TRACK.far, 0, 1)) * dt;      // slowing into the station
+      const gone = tr.dir > 0 ? tr.head - TRAIN > TRACK.far + 10 : tr.head + TRAIN < this.edge - 30;
       if (gone) { tr.active = false; tr.dir = -tr.dir; tr.wait = R.range(14, 28); }
       busy = true;
     } else if ((tr.wait -= dt) <= 0) {
       tr.active = true;
-      tr.head = tr.dir > 0 ? this.edge - 20 : this.end + 10;
+      tr.head = tr.dir > 0 ? this.edge - 20 : TRACK.far + 10;
     }
 
     if (env.wet) {
@@ -237,10 +236,7 @@ export class Live {
     const at = (s, up) => { const k = trackK(s), x = trackX(s); return [x, deckY(x) - (up - TRACK.sunk) * h * k, k]; };
     ctx.save();
     ctx.beginPath();
-    ctx.moveTo(v.x - 4, 0); ctx.lineTo(MOUTH.x1, 0); ctx.lineTo(MOUTH.x1, MOUTH.top);      // the far end runs in under the station canopy
-    ctx.quadraticCurveTo(MOUTH.x0, MOUTH.top, MOUTH.x0, MOUTH.deck);
-    ctx.lineTo(MOUTH.x0, H); ctx.lineTo(v.x - 4, H);
-    ctx.closePath();
+    ctx.rect(v.x - 4, 0, TOWER_X - 2 - v.x + 4, H);       // it runs into the station and on behind the tower
     ctx.clip();
     for (const p of this.parts) {
       let s0 = tr.dir > 0 ? tr.head - p.u1 : tr.head + p.u0;
@@ -248,7 +244,7 @@ export class Live {
       if (s1 < -620 || s0 > TRACK.far + 30) continue;
       s0 = Math.max(s0, -620);
       const z = lerp(0.4, 0.62, clamp((s0 + s1) / 2 / TRACK.far, 0, 1));
-      const stroke = { col: p.glow ? env.glow(p.c, z) : env.fogged(p.c, z), alpha: 0.95, seed: p.seed };
+      const stroke = { alpha: 0.95, seed: p.seed };
       if (p.post) {
         const a = at(s0, p.v0), b = at(s0, p.v1);
         stroke.x = a[0]; stroke.y = (a[1] + b[1]) / 2; stroke.a = HALF; stroke.len = a[1] - b[1]; stroke.w = p.wd * a[2];
@@ -261,6 +257,9 @@ export class Live {
         stroke.len = Math.hypot(b[0] - a[0], b[1] - a[1]); stroke.w = p.th * h * (a[2] + b[2]) / 2;
       }
       if (stroke.x + stroke.len < v.x - 10) continue;
+      const dim = clamp((stroke.x - MOUTH.x0) / (MOUTH.x1 - MOUTH.x0), 0, 1);      // in under the canopy, out of the sun
+      const base = dim > 0 ? mix(p.c, p.shade, dim) : p.c;
+      stroke.col = p.glow ? env.glow(base, z) : env.fogged(base, z);
       drawStroke(ctx, stroke);
       if (p.mirror) {
         const ry = reflectY(stroke.y);

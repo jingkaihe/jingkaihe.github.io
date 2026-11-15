@@ -48,8 +48,9 @@ export const deckY = (x) => toVPT(TRACK.deck0, x);
 export const girderY = (x) => toVPT(TRACK.girder0, x);
 
 // The station canopy the track runs into: an arched mouth, then a roof running
-// back to the tower. MOUTH is the arch the train slips under.
-const CANOPY = { x: 642, w: 22, rise: 122, end: TOWER_X - 2 };
+// back to the tower. MOUTH is the arch the train runs in under; it stays in
+// view inside until the tower hides it.
+const CANOPY = { x: 642, w: 22, rise: 136, end: TOWER_X - 2 };
 const canopyRoof = (x) => deckY(x) - CANOPY.rise * scaleAt(x);
 export const MOUTH = { x0: CANOPY.x, x1: CANOPY.x + CANOPY.w, deck: deckY(CANOPY.x), top: canopyRoof(CANOPY.x + CANOPY.w) };
 // Point and tangent angle on the mouth's arch, t from the deck (0) to the crown (1).
