@@ -104,7 +104,6 @@ export class Painter {
     this.queue = [];
     this.cursor = 0;
     this.clock = 0;
-    this.count = 0;
     this.onFront = null;        // strokes that belong in front of the train are handed over
   }
 
@@ -184,7 +183,6 @@ export class Painter {
     this.queue = queue;
     this.cursor = 0;
     this.clock = fresh ? 0 : 0.5;       // reworking an existing picture skips the sketch
-    this.count = 0;
     this.debt = 0;
     this.guests = 0;
     this.nextGuest = SETTLE + 5;
@@ -197,7 +195,6 @@ export class Painter {
 
   put(s) {
     if (s.front) { if (this.onFront) this.onFront(s); } else drawStroke(this.ctx, s);
-    this.count++;
   }
 
   // Advance by dt seconds. Unless unhurried, stop after about 10ms of drawing

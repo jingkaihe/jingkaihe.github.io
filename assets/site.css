@@ -1,9 +1,8 @@
-/* jingkaihe.github.io — a single painting on a gallery wall, with a label. */
+/* jingkaihe.github.io — a single painting on a gallery wall. */
 
 @font-face { font-family: "Newsreader"; src: url("fonts/newsreader-latin.woff2") format("woff2"); font-weight: 300 700; font-style: normal; font-display: swap; }
 @font-face { font-family: "Newsreader"; src: url("fonts/newsreader-italic-latin.woff2") format("woff2"); font-weight: 300 700; font-style: italic; font-display: swap; }
 @font-face { font-family: "DM Mono"; src: url("fonts/dm-mono-400-latin.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap; }
-@font-face { font-family: "DM Mono"; src: url("fonts/dm-mono-500-latin.woff2") format("woff2"); font-weight: 500; font-style: normal; font-display: swap; }
 
 :root {
   color-scheme: light dark;
@@ -11,16 +10,14 @@
   --wall-lit: #f8f4ec;
   --ink: #1f2228;
   --muted: #68655d;
-  --line: rgb(31 34 40 / 0.16);
-  --dot: #cf3a22;                     /* the red buoy */
   --frame: #2a2420;
   --frame-lip: #4a3e34;
   --shade: 46 34 22;
   --serif: "Newsreader", "Iowan Old Style", "Palatino Linotype", Georgia, serif;
   --mono: "DM Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   --gutter: clamp(1rem, 4vw, 3rem);
-  /* As wide as the window allows, but never so tall that the label drops out of view. */
-  --column: max(min(100vw - 2 * var(--gutter), (100svh - 15rem) * 1.5, 82rem), min(100vw - 2 * var(--gutter), 26rem));
+  /* As wide as the window allows, but never so tall that the title drops out of view. */
+  --column: max(min(100vw - 2 * var(--gutter), (100svh - 11rem) * 1.5, 82rem), min(100vw - 2 * var(--gutter), 26rem));
 }
 
 @media (prefers-color-scheme: dark) {
@@ -29,8 +26,6 @@
     --wall-lit: #23262b;
     --ink: #ece7db;
     --muted: #9c988d;
-    --line: rgb(236 231 219 / 0.18);
-    --dot: #f0603f;
     --frame: #0c0b0a;
     --frame-lip: #3d362f;
     --shade: 0 0 0;
@@ -49,7 +44,11 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-.page { width: var(--column); margin: 0 auto; padding-bottom: clamp(3rem, 8vw, 6rem); }
+/* One column, the painting hung a little above the middle of the wall. */
+.page { width: var(--column); min-height: 100svh; margin: 0 auto; padding-bottom: 1.5rem; display: flex; flex-direction: column; }
+main { flex: 1; display: flex; flex-direction: column; }
+main::before { content: ""; flex: 2; }
+main::after { content: ""; flex: 3; }
 
 a { color: inherit; }
 :focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; border-radius: 2px; }
@@ -105,74 +104,32 @@ a { color: inherit; }
   .canvas { aspect-ratio: 4 / 5; }
 }
 
-/* ---- the label beside it ---- */
+/* ---- its title ---- */
 
-.label { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 1.25rem 3rem; align-items: start; padding: 1.5rem 0.15rem 0; }
-.title { margin: 0; font: italic 400 clamp(1.4rem, 1.05rem + 1.1vw, 1.9rem)/1.15 var(--serif); letter-spacing: -0.01em; text-wrap: balance; }
+.title { margin: 0; padding: 1.3rem 0.15rem 0; font: italic 400 clamp(1.4rem, 1.05rem + 1.1vw, 1.9rem)/1.15 var(--serif); letter-spacing: -0.01em; text-wrap: balance; }
 .title cite { font-style: inherit; }
-.medium { margin: 0.55rem 0 0; font: 400 0.78rem/1.6 var(--mono); letter-spacing: 0.02em; color: var(--muted); font-variant-numeric: tabular-nums; }
-.medium span:not(:empty)::before { content: "\00a0\00b7\00a0"; }
 
-.controls { display: grid; gap: 0.3rem; font: 400 0.8rem/1.3 var(--mono); letter-spacing: 0.02em; }
-.choice { display: grid; grid-template-columns: 4.6rem repeat(4, auto); justify-content: start; align-items: center; column-gap: 0.35rem; }
-.choice-name { color: var(--muted); letter-spacing: 0.07em; text-transform: uppercase; font-size: 0.72rem; }
-.choice label { position: relative; padding: 0.42rem 0.55rem 0.42rem 1.05rem; color: var(--muted); cursor: pointer; }
-.choice input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
-.choice label span::before {
-  content: "";
-  position: absolute;
-  left: 0.3rem;
-  top: 50%;
-  width: 0.4rem;
-  height: 0.4rem;
-  margin-top: -0.2rem;
-  border-radius: 50%;
-  background: var(--dot);
-  transform: scale(0);
-  transition: transform 0.2s cubic-bezier(0.3, 1.4, 0.5, 1);
-}
-.choice label:hover span, .choice input:checked + span { color: var(--ink); }
-.choice input:checked + span::before { transform: scale(1); }
-.choice input:focus-visible + span { outline: 2px solid var(--ink); outline-offset: 4px; border-radius: 2px; }
+/* ---- season and weather: two quiet buttons in the corner ---- */
 
-.actions { display: flex; gap: 0.5rem; margin: 0.55rem 0 0 calc(4.6rem + 0.35rem + 0.3rem); }
-.actions button {
-  font: inherit;
-  color: var(--ink);
-  background: none;
-  border: 1px solid var(--line);
+.conditions { position: fixed; z-index: 2; right: max(1rem, env(safe-area-inset-right)); bottom: max(1rem, env(safe-area-inset-bottom)); display: flex; gap: 0.4rem; }
+.conditions select {
+  appearance: none;
+  -webkit-appearance: none;
+  color-scheme: light;
+  font: 400 0.75rem/1 var(--mono);
+  letter-spacing: 0.03em;
+  color: #2c2e33;
+  background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23888' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 0.7rem center / 0.5rem;
+  border: 1px solid rgb(0 0 0 / 0.1);
   border-radius: 999px;
-  padding: 0.42rem 0.9rem;
+  padding: 0.5rem 1.65rem 0.5rem 0.85rem;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.08), 0 6px 14px -6px rgb(0 0 0 / 0.16);
   cursor: pointer;
   transition: border-color 0.15s;
 }
-.actions button:hover { border-color: var(--ink); }
-.actions button:active { transform: translateY(1px); }
-
-/* ---- below the fold ---- */
-
-.about { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 2.5rem clamp(2rem, 6vw, 5rem); margin-top: clamp(3.5rem, 9vw, 7rem); padding-top: 2rem; border-top: 1px solid var(--line); }
-.lede { margin: 0 0 2.25rem; font-size: clamp(1.6rem, 1.15rem + 1.7vw, 2.4rem); line-height: 1.15; letter-spacing: -0.015em; text-wrap: balance; }
-.kicker { margin: 0 0 0.7rem; font: 400 0.72rem/1.3 var(--mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); }
-.note { margin: 0; max-width: 34rem; color: var(--muted); text-wrap: pretty; }
-
-.projects { margin: 0; padding: 0; list-style: none; }
-.projects li { display: grid; grid-template-columns: 7.5rem minmax(0, 1fr); gap: 1rem; align-items: baseline; padding: 0.95rem 0; border-top: 1px solid var(--line); }
-.projects li:first-child { border-top: 0; padding-top: 0; }
-.projects a { font: 500 0.88rem/1.4 var(--mono); text-decoration: none; }
-.projects a:hover { text-decoration: underline; text-underline-offset: 0.25em; text-decoration-color: var(--dot); }
-.projects p { margin: 0; color: var(--muted); }
-
-@media (max-width: 800px) {
-  .label { grid-template-columns: minmax(0, 1fr); }
-  .about { grid-template-columns: minmax(0, 1fr); }
-}
-@media (max-width: 420px) {
-  .choice { grid-template-columns: repeat(4, auto); }
-  .choice-name { grid-column: 1 / -1; padding: 0.5rem 0 0 0.3rem; }
-  .actions { margin-left: 0.3rem; }
+.conditions select:hover { border-color: rgb(0 0 0 / 0.32); }
+.conditions select:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; border-radius: 999px; }
+@media (pointer: coarse) {
+  .conditions select { padding-block: 0.72rem; }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .choice label span::before, .actions button { transition: none; }
-}
