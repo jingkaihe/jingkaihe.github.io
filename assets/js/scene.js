@@ -31,8 +31,10 @@ const WATER_Y = 572, REFLECT = 0.62;
 const SUN = { x: 150, y: 112 };
 
 // The DLR viaduct. Distance along the track (s) maps to the picture through
-// one-point perspective toward VPR; k is the scale at that distance.
-export const TRACK = { D: 900, deck0: 352, girder0: 446, height: 74, far: 2625 };
+// one-point perspective toward VPR; k is the scale at that distance. A train is
+// about as tall as the girder is deep (height, at the near edge) and rides low
+// enough that the parapet hides the bottom third of it (sunk).
+export const TRACK = { D: 900, deck0: 352, girder0: 446, height: 100, sunk: 0.36, far: 2625 };
 export const trackK = (s) => TRACK.D / (TRACK.D + s);
 export const trackX = (s) => VPR.x * (1 - trackK(s));
 export const trackS = (x) => TRACK.D * x / (VPR.x - x);      // inverse of trackX
@@ -664,10 +666,11 @@ export function buildScene(season, weather, seed, view) {
       const along = (group, ya, yb, w, col) => dab(group, (xa + xb) / 2, (ya + yb) / 2, Math.atan2(yb - ya, xb - xa), Math.hypot(xb - xa, yb - ya), w, col, 0.9);
       along('structure', girderY(xa), girderY(xb), 4.5 * kk + 1, V(env.shade(A.steel, 0.1, zb), 0.03, 0.02));
       along('front', deckY(xa) + 1.5 * kk, deckY(xb) + 1.5 * kk, 4 * kk + 1, V(env.shade(cap || A.steel, cap ? 1 : 0.3, zb), 0.03, 0.02));
-      along('front', deckY(xa) - 20 * kk, deckY(xb) - 20 * kk, 1.5 * kk + 0.5, V(env.shade(A.rail, 0.5, zb), 0.03, 0.02));
+      along('front', deckY(xa) - 30 * kk, deckY(xb) - 30 * kk, 1.6 * kk + 0.5, V(env.shade(A.rail, 0.5, zb), 0.03, 0.02));
+      along('front', deckY(xa) - 15 * kk, deckY(xb) - 15 * kk, 1.1 * kk + 0.4, V(env.shade(A.rail, 0.5, zb), 0.03, 0.02));
       for (const ps of [s, s + 43]) {
         const px = trackX(ps), pk = trackK(ps);
-        dab('front', px, deckY(px) - 10 * pk, HALF, 20 * pk, 2 * pk + 0.6, V(env.shade(A.railBlue, 0.8, zb), 0.04, 0.03), 0.92);
+        dab('front', px, deckY(px) - 15 * pk, HALF, 30 * pk, 2.4 * pk + 0.6, V(env.shade(A.railBlue, 0.8, zb), 0.04, 0.03), 0.92);
       }
     }
 

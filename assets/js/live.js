@@ -9,12 +9,13 @@ import { W, H, TRACK, TOWER_X, trackK, trackX, trackS, deckY, waterY, reflectY }
 import { drawStroke } from './brush.js';
 
 const HALF = Math.PI / 2;
-const CAR = 540, GAP = 16, CARS = 2, TRAIN = CARS * CAR + (CARS - 1) * GAP;
+const CAR = 800, GAP = 18, CARS = 2, TRAIN = CARS * CAR + (CARS - 1) * GAP;
 const RAIN_ANGLE = HALF + 0.2;
 const RAIN_DX = Math.cos(RAIN_ANGLE), RAIN_DY = Math.sin(RAIN_ANGLE);
 
 // The train in its own space: u runs back from the nose along the track, v up
-// from the rail (0..1). Bands are strokes along the body, posts across it.
+// from the rail (0) to the roof (1). Only what shows above the bridge parapet
+// is modelled. Bands are strokes along the body, posts across it.
 function buildTrain(R) {
   const parts = [];
   const band = (u0, u1, v, th, col, lit, extra) => parts.push(Object.assign({ u0, u1, v, th, col, lit, seed: R.seed() }, extra));
@@ -24,24 +25,23 @@ function buildTrain(R) {
   const greens = [[0.02, 0.64, 0.52], [0.10, 0.72, 0.58], [0.0, 0.56, 0.50]];
   const glass = [[0.10, 0.13, 0.20], [0.15, 0.17, 0.27]];
   for (let car = 0; car < CARS; car++) {
-    const o = car * (CAR + GAP), n = 10, seg = CAR / n;
+    const o = car * (CAR + GAP), n = 14, seg = CAR / n;
     for (let i = 0; i < n; i++) {
       const u0 = o + i * seg, u1 = Math.min(o + CAR, u0 + seg * 1.06);
-      band(u0, u1, 0.05, 0.11, [0.16, 0.15, 0.21], 0.2);
-      band(u0, u1, 0.2, 0.17, R.pick(greens), 1, { mirror: true });
-      band(u0, u1, 0.37, 0.19, R.pick(whites), 1, { mirror: true });
-      band(u0, u1, 0.61, 0.3, R.pick(glass), 0.5, { mirror: true });
-      band(u0, u1, 0.85, 0.15, R.pick(whites), 0.95, { mirror: true });
-      band(u0, u1, 0.965, 0.07, [0.70, 0.73, 0.76], 1);
-      band(u0 + seg * 0.18, u0 + seg * 0.82, 0.62, 0.19, null, 1, { pane: true });
+      band(u0, u1, 0.43, 0.15, R.pick(whites), 1, { mirror: true });
+      band(u0, u1, 0.525, 0.06, R.pick(greens), 1);
+      band(u0, u1, 0.68, 0.25, R.pick(glass), 0.5, { mirror: true });
+      band(u0, u1, 0.855, 0.11, R.pick(whites), 0.95, { mirror: true });
+      band(u0, u1, 0.955, 0.09, [0.70, 0.73, 0.76], 1);
+      band(u0 + seg * 0.16, u0 + seg * 0.84, 0.685, 0.17, null, 1, { pane: true });
     }
-    for (const f of [0.14, 0.38, 0.62, 0.86]) post(o + CAR * f, 0.12, 0.88, 22, R.pick(greens), 1);
-    for (const u of [o + 5, o + CAR - 5]) post(u, 0.1, 0.9, 14, [0.0, 0.50, 0.44], 0.8);
-    for (const u of [o + 9, o + CAR - 9]) post(u, 0.42, 0.84, 10, [0.09, 0.10, 0.20], 0.4);
+    for (const f of [0.13, 0.37, 0.63, 0.87]) post(o + CAR * f, 0.37, 0.89, 30, R.pick(greens), 1);
+    for (const u of [o + 8, o + CAR - 8]) post(u, 0.37, 0.92, 18, [0.0, 0.50, 0.44], 0.8);
+    for (const u of [o + 13, o + CAR - 13]) post(u, 0.56, 0.86, 12, [0.09, 0.10, 0.20], 0.4);
   }
-  band(CAR, CAR + GAP, 0.3, 0.2, [0.12, 0.12, 0.18], 0.2);
-  parts.push({ u0: 2, u1: 2, v: 0.2, dot: true, lamp: [1, 0.95, 0.75], seed: R.seed() });
-  parts.push({ u0: TRAIN - 2, u1: TRAIN - 2, v: 0.2, dot: true, lamp: [1, 0.22, 0.16], seed: R.seed() });
+  band(CAR, CAR + GAP, 0.6, 0.34, [0.12, 0.12, 0.18], 0.2);
+  parts.push({ u0: 3, u1: 3, v: 0.44, dot: true, lamp: [1, 0.95, 0.75], seed: R.seed() });
+  parts.push({ u0: TRAIN - 3, u1: TRAIN - 3, v: 0.44, dot: true, lamp: [1, 0.22, 0.16], seed: R.seed() });
   return parts;
 }
 
@@ -145,7 +145,7 @@ export class Live {
     let busy = this.dirty;
 
     if (tr.active) {
-      tr.head += tr.dir * lerp(135, 70, clamp(tr.head / TRACK.far, 0, 1)) * dt;      // slowing into the station
+      tr.head += tr.dir * lerp(150, 80, clamp(tr.head / TRACK.far, 0, 1)) * dt;      // slowing into the station
       const gone = tr.dir > 0 ? tr.head - TRAIN > TRACK.far + 30 : tr.head + TRAIN < this.edge - 30;
       if (gone) { tr.active = false; tr.dir = -tr.dir; tr.wait = R.range(14, 28); }
       busy = true;
@@ -238,7 +238,7 @@ export class Live {
 
   drawTrain(ctx) {
     const tr = this.train, env = this.env, v = this.view, h = TRACK.height, water = this.scene.waterCol;
-    const at = (s, up) => { const k = trackK(s), x = trackX(s); return [x, deckY(x) - up * h * k, k]; };
+    const at = (s, up) => { const k = trackK(s), x = trackX(s); return [x, deckY(x) - (up - TRACK.sunk) * h * k, k]; };
     ctx.save();
     ctx.beginPath();
     ctx.rect(v.x - 4, 0, TOWER_X - v.x + 4, H);       // the tower hides the far end
@@ -255,7 +255,7 @@ export class Live {
         stroke.x = a[0]; stroke.y = (a[1] + b[1]) / 2; stroke.a = HALF; stroke.len = a[1] - b[1]; stroke.w = p.wd * a[2];
       } else if (p.dot) {
         const a = at(s0, p.v);
-        stroke.x = a[0]; stroke.y = a[1]; stroke.a = 0; stroke.len = 1; stroke.w = 9 * a[2]; stroke.round = true;
+        stroke.x = a[0]; stroke.y = a[1]; stroke.a = 0; stroke.len = 1; stroke.w = 11 * a[2]; stroke.round = true;
       } else {
         const a = at(s0, p.v), b = at(s1, p.v);
         stroke.x = (a[0] + b[0]) / 2; stroke.y = (a[1] + b[1]) / 2; stroke.a = Math.atan2(b[1] - a[1], b[0] - a[0]);
