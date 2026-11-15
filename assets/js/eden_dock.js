@@ -925,11 +925,11 @@ function buildTrain(R) {
     for (let i = 0; i < n; i++) {
       const u0 = o + i * seg, u1 = Math.min(o + CAR, u0 + seg * 1.06);
       band(u0, u1, 0.18, 0.09, [0.16, 0.15, 0.21], 0.2);
-      band(u0, u1, 0.28, 0.13, R.pick(greens), 1, { mirror: true });
+      band(u0, u1, 0.28, 0.13, R.pick(greens), 1);
       band(u0, u1, 0.235, 0.04, [0.0, 0.40, 0.37], 0.45);
-      band(u0, u1, 0.43, 0.19, R.pick(whites), 1, { mirror: true });
-      band(u0, u1, 0.66, 0.28, R.pick(glass), 0.5, { mirror: true });
-      band(u0, u1, 0.855, 0.12, R.pick(whites), 0.95, { mirror: true });
+      band(u0, u1, 0.43, 0.19, R.pick(whites), 1);
+      band(u0, u1, 0.66, 0.28, R.pick(glass), 0.5);
+      band(u0, u1, 0.855, 0.12, R.pick(whites), 0.95);
       band(u0, u1, 0.895, 0.03, [1, 1, 1], 1.3);
       band(u0, u1, 0.955, 0.09, [0.60, 0.63, 0.68], 0.75);
       band(u0 + seg * 0.16, u0 + seg * 0.84, 0.665, 0.19, null, 1, { pane: true });
@@ -963,6 +963,13 @@ function buildEnd(R) {
   for (const a of [0.24, 0.76]) parts.push({ a0: a, a1: a, v: 0.41, lamp: true, seed: R.seed() });
   return parts;
 }
+
+// The train's reflection in the dock is painted on a sheet of its own, from
+// top (just above where the far end of the deck is reflected) down to the foot
+// of the picture and pad wider than it on each side, then laid on the water in
+// rows, row deep. wash is how much of the water's own colour goes over it,
+// show how solid it is at most.
+const MIRROR = { top: Math.floor(reflectY(deckY(TOWER_X))) - 10, pad: 12, row: 4, wash: 0.4, show: 0.85 };
 
 // The DLR, back and forth across the bridge. It is one of the cast: the live
 // layer tells it when the frame or the light changes, moves it on each frame
@@ -1017,16 +1024,72 @@ class Train {
 
   draw(ctx, time) {
     if (!this.active) return;
-    const env = this.env, v = this.view, h = TRACK.height, water = this.water;
+    const strokes = this.strokes();
+    ctx.save();
+    this.frame(ctx, this.view.x - 4);
+    for (const s of strokes) drawStroke(ctx, s);
+    ctx.restore();
+    this.reflect(ctx, time, strokes);
+  }
+
+  // Clip to where the train shows: above the edge of the deck, from x0 as far
+  // as the tower, which hides the rest.
+  frame(ctx, x0) {
+    const xr = TOWER_X - 2;
+    ctx.beginPath();
+    ctx.moveTo(x0, 0); ctx.lineTo(xr, 0); ctx.lineTo(xr, deckY(xr) + 2); ctx.lineTo(x0, deckY(x0) + 2);
+    ctx.closePath();
+    ctx.clip();
+  }
+
+  // Its reflection: the train again, flipped and squashed into the dock like
+  // everything else above the waterline, and sunk under the water's colour.
+  // The ripples then break it up: it is laid on the water a row at a time,
+  // each row slid sideways, as the painted reflections are, and let through
+  // more or less as the ripples pass.
+  reflect(ctx, time, strokes) {
+    const v = this.view, k = ctx.canvas.width / v.w;
+    let lo = Infinity, hi = -Infinity;
+    for (const s of strokes) {
+      const y = reflectY(s.y), reach = (Math.abs(Math.sin(s.a)) * s.len + s.w) / 2 * REFLECT;
+      lo = Math.min(lo, y - reach); hi = Math.max(hi, y + reach);
+    }
+    lo = Math.max(MIRROR.top, lo); hi = Math.min(H, hi);
+    if (!(lo < hi)) return;
+
+    const sheet = this.sheet || (this.sheet = makeCanvas(1, 1)), g = sheet.getContext('2d');
+    const w = Math.ceil((v.w + 2 * MIRROR.pad) * k), tall = Math.ceil((H - MIRROR.top) * k);
+    if (sheet.width !== w || sheet.height !== tall) { sheet.width = w; sheet.height = tall; }
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.globalCompositeOperation = 'source-over';
+    g.clearRect(0, 0, w, tall);
+    g.save();
+    g.setTransform(k, 0, 0, -REFLECT * k, (MIRROR.pad - v.x) * k, ((1 + REFLECT) * WATER_Y - MIRROR.top) * k);
+    this.frame(g, v.x - MIRROR.pad - 4);
+    for (const s of strokes) drawStroke(g, s);
+    g.restore();
+    g.globalCompositeOperation = 'source-atop';      // over the train only
+    g.fillStyle = css(this.water, MIRROR.wash);
+    g.fillRect(0, 0, w, tall);
+
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    const top = Math.round(MIRROR.top * k);
+    for (let y = MIRROR.top + Math.floor((lo - MIRROR.top) / MIRROR.row) * MIRROR.row; y < hi; y += MIRROR.row) {
+      const sy = Math.round((y - MIRROR.top) * k), sh = Math.round((y + MIRROR.row - MIRROR.top) * k) - sy;
+      const slide = Math.sin(y * 0.33 + time * 1.5) * Math.min(7, (y - 570) * 0.06);
+      ctx.globalAlpha = MIRROR.show * (0.74 + 0.26 * Math.sin(y * 0.71 - time * 1.9));
+      ctx.drawImage(sheet, 0, sy, w, sh, Math.round((slide - MIRROR.pad) * k), top + sy, w, sh);
+    }
+    ctx.restore();
+  }
+
+  // This frame's strokes, in the order they go on: the side, then the end that faces us.
+  strokes() {
+    const env = this.env, v = this.view, h = TRACK.height, list = [];
     const at = (s, up) => { const k = trackK(s), x = trackX(s); return [x, deckY(x) - (up - TRACK.sunk) * h * k, k]; };
     const depth = (s) => lerp(0.4, 0.62, clamp(s / TRACK.far, 0, 1));
     const under = (x) => clamp((x - MOUTH.x0) / (MOUTH.x1 - MOUTH.x0), 0, 1);      // in under the canopy, out of the sun
-    const xr = TOWER_X - 2, mirrors = [];
-    ctx.save();
-    ctx.beginPath();          // above the edge of the deck, and short of the tower, which hides the rest
-    ctx.moveTo(v.x - 4, 0); ctx.lineTo(xr, 0); ctx.lineTo(xr, deckY(xr) + 2); ctx.lineTo(v.x - 4, deckY(v.x - 4) + 2);
-    ctx.closePath();
-    ctx.clip();
 
     // the side
     for (const p of this.parts) {
@@ -1046,16 +1109,7 @@ class Train {
       if (stroke.x + stroke.len < v.x - 10) continue;
       const dim = under(stroke.x);
       stroke.col = p.glow ? env.glow(dim > 0 ? mix(p.c, p.shade, dim) : p.c, z) : env.fogged(dim > 0 ? mix(p.c, p.shade, dim) : p.c, z);
-      drawStroke(ctx, stroke);
-      if (p.mirror && stroke.x < xr) {
-        const ry = reflectY(stroke.y);
-        if (ry > waterY(stroke.x) + 6 && ry < H + 4) {
-          mirrors.push({
-            x: stroke.x + Math.sin(time * 1.4 + ry * 0.21 + (p.seed % 7)) * 2.5, y: ry, a: 0,
-            len: Math.max(7, stroke.len * 0.9), w: Math.max(1.6, stroke.w * 0.6), col: mix(stroke.col, water, 0.3), alpha: 0.5, seed: p.seed
-          });
-        }
-      }
+      list.push(stroke);
     }
 
     // the end that faces us: the tail of a train going away, the front of one coming
@@ -1069,7 +1123,7 @@ class Train {
         if (p.lamp) {
           const c = corner(p.a0, p.v);
           stroke.x = c[0]; stroke.y = c[1]; stroke.a = 0; stroke.len = 1; stroke.w = Math.max(2.5, 0.16 * span); stroke.round = true; stroke.col = lamp;
-          if (this.halo) drawStroke(ctx, Object.assign({}, stroke, { w: stroke.w * 2.8, alpha: 0.22 }));
+          if (this.halo) list.push(Object.assign({}, stroke, { w: stroke.w * 2.8, alpha: 0.22 }));
         } else {
           if (p.post) {
             const a = corner(p.a0, p.v0), b = corner(p.a0, p.v1);
@@ -1081,13 +1135,10 @@ class Train {
           }
           stroke.col = env.fogged(dim > 0 ? mix(p.c, p.shade, dim) : p.c, z);
         }
-        drawStroke(ctx, stroke);
+        list.push(stroke);
       }
     }
-    ctx.restore();
-
-    // and its reflection, broken up by the water
-    for (const m of mirrors) drawStroke(ctx, m);
+    return list;
   }
 }
 
