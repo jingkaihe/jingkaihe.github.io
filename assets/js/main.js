@@ -1,6 +1,6 @@
-// Wires the painting to the page: the place, season and weather buttons, the
-// title under the frame, the postcard behind the name, and the frame loop that
-// keeps painter and live layer going.
+// Wires the painting to the page: the title under the frame (its place,
+// weather and season are buttons), the postcard behind the name, and the frame
+// loop that keeps painter and live layer going.
 
 import { edenDock } from './eden_dock.js';
 import { parliamentHill } from './parliament_hill.js';
@@ -17,10 +17,9 @@ const PLACES = Object.keys(MOTIFS);
 const CHOICES = { place: PLACES, season: SEASONS, weather: WEATHERS };
 const EFFECT = { sunny: 'Sunlight', cloudy: 'Grey Weather', fog: 'Fog', rain: 'Rain' };
 const SEEN = { sunny: 'in sunshine', cloudy: 'under cloud', fog: 'in fog', rain: 'in the rain' };
-const SAID = { sunny: 'Sunny', cloudy: 'Cloudy', fog: 'Foggy', rain: 'Rainy' };      // the weather, as its button puts it
 
 const $ = (id) => document.getElementById(id);
-const holder = $('painting'), buttons = $('conditions').querySelectorAll('button');
+const holder = $('painting'), buttons = $('title').querySelectorAll('button');
 const narrow = matchMedia('(max-width: 640px) and (orientation: portrait)');
 
 const painter = new Painter($('paint')), live = new Live($('live'));
@@ -53,8 +52,8 @@ function after(name) {
   const list = CHOICES[name];
   return list[(list.indexOf(state[name]) + 1) % list.length];
 }
-// A choice, as the buttons put it.
-const said = (name, value) => (name === 'place' ? MOTIFS[value].title : name === 'weather' ? SAID[value] : value[0].toUpperCase() + value.slice(1));
+// A choice, as the title puts it.
+const said = (name, value) => (name === 'place' ? MOTIFS[value].title : name === 'weather' ? EFFECT[value] : value[0].toUpperCase() + value.slice(1));
 
 // Size the canvases to the frame. True if they changed enough to need repainting.
 function fit() {
@@ -96,14 +95,14 @@ function paint() {
     live.still();
     live.tick(0);
   }
-  const season = state.season[0].toUpperCase() + state.season.slice(1);
-  $('title').textContent = motif.title + ', ' + EFFECT[state.weather] + ', ' + season;
   holder.setAttribute('aria-label', 'A painting of ' + motif.place + ' in ' + state.season + ', ' + SEEN[state.weather] + ': ' + motif.sight + '.');
   for (const b of buttons) {
     b.textContent = said(b.name, state[b.name]);
-    b.title = b.name[0].toUpperCase() + b.name.slice(1) + ': ' + said(b.name, state[b.name]);
-    b.setAttribute('aria-label', b.title + '. Switch to ' + said(b.name, after(b.name)) + '.');
+    b.title = 'Switch to ' + said(b.name, after(b.name));
+    b.setAttribute('aria-label', b.name[0].toUpperCase() + b.name.slice(1) + ': ' + b.textContent + '. ' + b.title + '.');
   }
+  // The figure is named by its title as read, not by what its buttons say they do.
+  holder.closest('figure').setAttribute('aria-label', [...buttons].map((b) => b.textContent).join(', '));
   history.replaceState(null, '', '#' + state.place + '/' + state.season + '-' + state.weather);
 }
 
