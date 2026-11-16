@@ -4,7 +4,7 @@ Personal site: one page that paints a place (Eden Dock at Canary Wharf, or Parli
 
 ## Layout
 
-- `index.html`: the name (which opens the postcard), the framed canvas, its title, the place button (the place's name in words), the season and weather buttons and their icon sprite, and the postcard dialog (bio and links).
+- `index.html`: the name (which opens the postcard), the framed canvas, its title, the place, season and weather buttons (each in words), and the postcard dialog (bio and links).
 - `assets/site.css`: page styles. Light and dark follow the system setting.
 - `assets/js/eden_dock.js`: Eden Dock, the first motif, and everything particular to it. `buildScene` draws a flat reference of the view plus a surface map on hidden canvases, and lists the hand-placed marks (structure, foliage, figures, lights, water). The file also says how each surface is brushed (`REGION`), holds the DLR train, and ends with the `edenDock` object the page paints from.
 - `assets/js/parliament_hill.js`: Parliament Hill, the second motif, laid out the same way and painted as an Impressionist would: broken colour in the grass, cool shadows, a city lost in haze (the `Z` depths run well past 1). Its cast is a kite and passing birds. Ends with the `parliamentHill` object.
@@ -20,7 +20,7 @@ Personal site: one page that paints a place (Eden Dock at Canary Wharf, or Parli
 
 ## Commands
 
-- Preview: `python3 -m http.server 8765`, then open http://localhost:8765/ (that server lets the browser keep modules for a few minutes, so hard-reload after edits)
+- Preview: `python3 -m http.server 8765`, then open http://localhost:8765/ (that server lets the browser keep modules for a few minutes, so hard-reload after edits). In a driven browser, wait for the page to load before reading it or taking a screenshot, and give the painting about 17 s (`SETTLE` in `painter.js`) to be laid down before judging how it looks
 - Syntax-check a module: `cp assets/js/eden_dock.js /tmp/eden_dock.mjs && node --check /tmp/eden_dock.mjs`
 
 ## Another motif

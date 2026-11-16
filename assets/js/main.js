@@ -17,6 +17,7 @@ const PLACES = Object.keys(MOTIFS);
 const CHOICES = { place: PLACES, season: SEASONS, weather: WEATHERS };
 const EFFECT = { sunny: 'Sunlight', cloudy: 'Grey Weather', fog: 'Fog', rain: 'Rain' };
 const SEEN = { sunny: 'in sunshine', cloudy: 'under cloud', fog: 'in fog', rain: 'in the rain' };
+const SAID = { sunny: 'Sunny', cloudy: 'Cloudy', fog: 'Foggy', rain: 'Rainy' };      // the weather, as its button puts it
 
 const $ = (id) => document.getElementById(id);
 const holder = $('painting'), buttons = $('conditions').querySelectorAll('button');
@@ -52,7 +53,8 @@ function after(name) {
   const list = CHOICES[name];
   return list[(list.indexOf(state[name]) + 1) % list.length];
 }
-const said = (name, value) => (name === 'place' ? MOTIFS[value].title : value);      // a choice, as the buttons put it
+// A choice, as the buttons put it.
+const said = (name, value) => (name === 'place' ? MOTIFS[value].title : name === 'weather' ? SAID[value] : value[0].toUpperCase() + value.slice(1));
 
 // Size the canvases to the frame. True if they changed enough to need repainting.
 function fit() {
@@ -98,8 +100,7 @@ function paint() {
   $('title').textContent = motif.title + ', ' + EFFECT[state.weather] + ', ' + season;
   holder.setAttribute('aria-label', 'A painting of ' + motif.place + ' in ' + state.season + ', ' + SEEN[state.weather] + ': ' + motif.sight + '.');
   for (const b of buttons) {
-    if (b.name === 'place') b.textContent = motif.title;      // the place is spelt out; season and weather are icons
-    else b.querySelector('use').setAttribute('href', '#i-' + state[b.name]);
+    b.textContent = said(b.name, state[b.name]);
     b.title = b.name[0].toUpperCase() + b.name.slice(1) + ': ' + said(b.name, state[b.name]);
     b.setAttribute('aria-label', b.title + '. Switch to ' + said(b.name, after(b.name)) + '.');
   }
